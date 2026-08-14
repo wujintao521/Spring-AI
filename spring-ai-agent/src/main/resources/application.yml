@@ -1,0 +1,36 @@
+spring:
+  application:
+    # 当前应用名称
+    name: spring-ai-agent
+
+  ai:
+    model:
+      # 开启 OpenAI 协议的聊天模型
+      chat: openai
+      # 暂时不创建向量模型
+      embedding: none
+      # 暂时不创建图片生成模型
+      image: none
+      # 暂时不创建内容审核模型
+      moderation: none
+      # 暂时不创建语音模型
+      audio:
+        speech: none
+        transcription: none
+    openai:
+      # 从 Windows 环境变量读取百炼 API Key
+      api-key: ${DASHSCOPE_API_KEY}
+      base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+      chat:
+        # 实际调用的千问模型
+        model: qwen-flash
+        # 控制回答随机性，越低越稳定
+        temperature: 0.7
+        # 限制单次回复长度
+        max-tokens: 512
+        # 关闭思考模式
+        extra-body:
+          enable_thinking: false
+server:
+  # Web 服务端口
+  port: 8080
