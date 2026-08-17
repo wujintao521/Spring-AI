@@ -28,6 +28,7 @@
         <java.version>21</java.version>
         <spring-ai.version>2.0.0</spring-ai.version>
         <mybatis-spring-boot.version>4.1.0</mybatis-spring-boot.version>
+        <fastjson2.version>2.0.64</fastjson2.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     </properties>
@@ -101,6 +102,17 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <scope>provided</scope>
+        </dependency>
+        <!-- JSON解析和构建工具 -->
+        <dependency>
+            <groupId>com.alibaba.fastjson2</groupId>
+            <artifactId>fastjson2</artifactId>
+            <version>${fastjson2.version}</version>
+        </dependency>
+        <!-- 使用JDBC将Agent会话记忆持久化到数据库 -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-model-chat-memory-repository-jdbc</artifactId>
         </dependency>
     </dependencies>
     <!--

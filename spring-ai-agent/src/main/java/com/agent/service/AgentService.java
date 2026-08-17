@@ -58,7 +58,10 @@ public class AgentService {
         }
         return chatClient
                 .prompt()
+                //用户发的消息
                 .user(message)
+                //会话id 开启记忆功能
+                .advisors(advisorSpec -> advisorSpec.param(ChatMemory.CONVERSATION_ID, conversationId))
                 .call()
                 .content();
     }

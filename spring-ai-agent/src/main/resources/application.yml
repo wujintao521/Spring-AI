@@ -46,6 +46,15 @@ spring:
         # 关闭思考模式
         extra-body:
           enable_thinking: false
+    # 通过MySQL存储会话记忆
+    chat:
+      memory:
+        repository:
+          jdbc:
+            # 自动创建会话记忆表
+            initialize-schema: always
+            # 使用Spring AI内置的MySQL建表脚本
+            platform: mysql
 
 mybatis:
   # classpath* 可以扫描依赖模块 common-dao 中的 XML
