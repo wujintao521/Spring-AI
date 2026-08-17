@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.agent.dao.TradeOrderMapper">
+
+    <!-- 交易订单查询结果映射 -->
+    <resultMap id="tradeOrderResultMap" type="com.agent.entity.TradeOrder">
+        <id property="id" column="id"/>
+
+        <result property="orderNo" column="order_no"/>
+        <result property="customerName" column="customer_name"/>
+        <result property="productName" column="product_name"/>
+        <result property="quantity" column="quantity"/>
+        <result property="totalAmount" column="total_amount"/>
+        <result property="status" column="status" javaType="com.agent.enums.OrderStatusEnum"/>
+        <result property="trackingNo" column="tracking_no"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <!-- 公共查询字段，避免在多个查询中重复编写字段列表 -->
+    <sql id="tradeOrderColumns">
+        id,
+        order_no,
+        customer_name,
+        product_name,
+        quantity,
+        total_amount,
+        status,
+        tracking_no,
+        created_at,
+        updated_at
+    </sql>
+
+    <!-- 根据唯一订单编号查询订单 -->
+    <select id="selectByOrderNo" resultMap="tradeOrderResultMap">
+        SELECT
+        <include refid="tradeOrderColumns"/>
+        FROM trade_order
+        WHERE order_no = #{orderNo}
+        LIMIT 1
+    </select>
+
+    <!-- 根据客户姓名查询订单列表 -->
+    <select id="selectListByCustomerName" resultMap="tradeOrderResultMap">
+        SELECT
+        <include refid="tradeOrderColumns"/>
+        FROM trade_order
+        WHERE customer_name = #{customerName}
+        ORDER BY created_at DESC, id DESC
+    </select>
+
+</mapper>
