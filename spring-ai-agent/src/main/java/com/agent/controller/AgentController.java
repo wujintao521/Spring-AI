@@ -25,7 +25,7 @@ public class AgentController {
 
     @PostMapping("/chat")
     public ApiResponse<String> chat(@Valid @RequestBody AgentChatRequest request) {
-        String answer = agentService.chat(request.message());
+        String answer = agentService.chat(request.conversationId(), request.message());
         return ApiResponse.success(answer);
     }
 }

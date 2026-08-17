@@ -27,6 +27,7 @@
         <!-- 项目统一版本号 -->
         <java.version>21</java.version>
         <spring-ai.version>2.0.0</spring-ai.version>
+        <mybatis-spring-boot.version>4.1.0</mybatis-spring-boot.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     </properties>
@@ -76,8 +77,32 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
-    </dependencies>
 
+        <!-- Spring JDBC：提供 DataSource、连接池和 JdbcClient -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-jdbc</artifactId>
+        </dependency>
+
+        <!-- MySQL JDBC 驱动 -->
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <!-- MyBatis 与 Spring Boot 的整合依赖 -->
+        <dependency>
+            <groupId>org.mybatis.spring.boot</groupId>
+            <artifactId>mybatis-spring-boot-starter</artifactId>
+            <version>${mybatis-spring-boot.version}</version>
+        </dependency>
+        <!-- lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
     <!--
         这里只管理插件版本和配置。pluginManagement 不会让 parent 自己执行打包，
         子模块声明插件后才会真正使用。

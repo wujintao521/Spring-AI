@@ -1,8 +1,23 @@
+server:
+  # Web 服务端口
+  port: 8080
+
 spring:
   application:
     # 当前应用名称
     name: spring-ai-agent
+  datasource:
+    url: ${SPRING_AI_DB_URL}
+    username: ${SPRING_AI_DB_USERNAME}
+    password: ${SPRING_AI_DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
 
+    hikari:
+      pool-name: SpringAiHikariPool
+      minimum-idle: 1
+      maximum-pool-size: 5
+      connection-timeout: 30000
+      validation-timeout: 5000
   ai:
     model:
       # 开启 OpenAI 协议的聊天模型
@@ -31,6 +46,11 @@ spring:
         # 关闭思考模式
         extra-body:
           enable_thinking: false
-server:
-  # Web 服务端口
-  port: 8080
+
+mybatis:
+  # classpath* 可以扫描依赖模块 common-dao 中的 XML
+  mapper-locations: classpath*:mapper/**/*.xml
+
+  configuration:
+    # 自动把数据库的 order_no 映射成 Java 的 orderNo
+    map-underscore-to-camel-case: true

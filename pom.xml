@@ -14,6 +14,7 @@
         <module>spring-ai-entity</module>
         <module>spring-ai-common-service</module>
         <module>spring-ai-utils</module>
+        <module>spring-ai-common-dao</module>
     </modules>
 
     <properties>
