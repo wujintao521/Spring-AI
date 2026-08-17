@@ -75,7 +75,7 @@ public class TradeOrderTool {
      * @return 格式化后的订单信息
      */
     private String formatTradeOrder(TradeOrder tradeOrder) {
-        String status = tradeOrder.getStatus() == null ? "未知" : tradeOrder.getStatus().getDescription();
+        String status = tradeOrder.getStatus() == null ? "UNKNOWN（未知）" : "%s（%s）".formatted(tradeOrder.getStatus().name(), tradeOrder.getStatus().getDescription());
         String trackingNo = tradeOrder.getTrackingNo() == null || tradeOrder.getTrackingNo().isBlank() ? "暂无" : tradeOrder.getTrackingNo();
         return "订单编号：%s；客户姓名：%s；商品名称：%s；购买数量：%s；订单金额：%s元；订单状态：%s；物流单号：%s。".formatted(
                 tradeOrder.getOrderNo(),
