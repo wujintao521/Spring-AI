@@ -1,7 +1,6 @@
 package com.agent.controller;
 
 import com.agent.request.AgentChatRequest;
-import com.agent.response.AgentChatResponse;
 import com.agent.response.ApiResponse;
 import com.agent.service.AgentService;
 import com.alibaba.fastjson2.JSONObject;

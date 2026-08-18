@@ -44,8 +44,11 @@ public class AgentService {
                         订单取消资格判断工具只提供判断结果，不代表已经取消订单。
                         当前阶段禁止告诉用户订单已经取消。
                         """)
-                //增加记忆功能
-                .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
+
+                .defaultAdvisors(
+                        //增加记忆功能
+                        MessageChatMemoryAdvisor.builder(chatMemory).build()
+                )
                 .defaultTools(dateTimeTool, tradeOrderTool,tradeOrderCancellationTool)
                 .build();
     }
