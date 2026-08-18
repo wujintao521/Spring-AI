@@ -1,6 +1,7 @@
 package com.agent.controller;
 
 import com.agent.request.AgentChatRequest;
+import com.agent.response.AgentChatResponse;
 import com.agent.response.ApiResponse;
 import com.agent.service.AgentService;
 import com.alibaba.fastjson2.JSONObject;
@@ -26,9 +27,9 @@ public class AgentController {
     }
 
     @PostMapping("/chat")
-    public ApiResponse<String> chat(@Valid @RequestBody AgentChatRequest request) {
+    public ApiResponse<AgentChatResponse> chat(@Valid @RequestBody AgentChatRequest request) {
         log.info("会话请求报文{}", JSONObject.toJSONString(request));
-        String answer = agentService.chat(request.conversationId(), request.message());
-        return ApiResponse.success(answer);
+        AgentChatResponse response = agentService.chat(request.conversationId(), request.message());
+        return ApiResponse.success(response);
     }
 }

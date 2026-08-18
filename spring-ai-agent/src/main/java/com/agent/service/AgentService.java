@@ -1,6 +1,7 @@
 package com.agent.service;
 
 
+import com.agent.response.AgentChatResponse;
 import com.agent.tool.DateTimeTool;
 import com.agent.tool.TradeOrderCancellationTool;
 import com.agent.tool.TradeOrderTool;
@@ -43,6 +44,15 @@ public class AgentService {
                         不得根据用户描述或历史经验猜测订单状态。
                         订单取消资格判断工具只提供判断结果，不代表已经取消订单。
                         当前阶段禁止告诉用户订单已经取消。
+                        
+                        生成最终回答时，必须正确设置本轮业务意图：
+                        GENERAL_CHAT表示普通对话；
+                        ORDER_QUERY表示查询订单详情、状态或物流；
+                        ORDER_CANCELLATION表示咨询或者申请取消订单。
+                        
+                        relatedOrderNos必须包含本轮实际涉及的全部订单编号；
+                        如果本轮没有涉及订单，relatedOrderNos返回空数组。
+                        不得编造没有出现在用户消息或工具查询结果中的订单编号。
                         """)
 
                 .defaultAdvisors(
@@ -60,7 +70,7 @@ public class AgentService {
      * @param message 用户输入的问题
      * @return 大模型生成的文本
      */
-    public String chat(String conversationId, String message) {
+    public AgentChatResponse chat(String conversationId, String message) {
         if (conversationId == null || conversationId.isBlank()) {
             throw new IllegalArgumentException("会话ID不能为空");
         }
@@ -74,7 +84,7 @@ public class AgentService {
                 //会话id 开启记忆功能
                 .advisors(advisorSpec -> advisorSpec.param(ChatMemory.CONVERSATION_ID, conversationId))
                 .call()
-                .content();
+                .entity(AgentChatResponse.class);
     }
 
 }
