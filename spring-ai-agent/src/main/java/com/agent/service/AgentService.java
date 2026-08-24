@@ -68,7 +68,7 @@ public class AgentService {
      *
      * @param conversationId 会话id
      * @param message 用户输入的问题
-     * @return 大模型生成的文本
+     * @return 大模型生成的结构化聊天结果
      */
     public AgentChatResponse chat(String conversationId, String message) {
         if (conversationId == null || conversationId.isBlank()) {

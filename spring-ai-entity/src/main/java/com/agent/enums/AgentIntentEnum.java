@@ -16,9 +16,9 @@ public enum AgentIntentEnum {
     ORDER_QUERY("订单查询"),
 
     /**
-     * 判断订单是否具备取消资格。
+     * 咨询或者申请取消订单。
      */
-    ORDER_CANCELLATION_ELIGIBILITY("订单取消资格判断");
+    ORDER_CANCELLATION("订单取消");
 
     private final String description;
 
