@@ -2,6 +2,7 @@ package com.agent.service;
 
 
 import com.agent.response.AgentChatResponse;
+import com.agent.response.AgentModelResponse;
 import com.agent.tool.DateTimeTool;
 import com.agent.tool.TradeOrderCancellationTool;
 import com.agent.tool.TradeOrderTool;
@@ -53,6 +54,20 @@ public class AgentService {
                         relatedOrderNos必须包含本轮实际涉及的全部订单编号；
                         如果本轮没有涉及订单，relatedOrderNos返回空数组。
                         不得编造没有出现在用户消息或工具查询结果中的订单编号。
+                        
+                        pendingAction用于保存等待用户确认的业务动作。
+                        confirmationRequired表示执行pendingAction前是否需要用户确认。
+                        
+                        必须按照以下规则设置pendingAction和confirmationRequired：
+                        
+                        1. 普通聊天、订单查询，以及询问“可以取消吗”“能否取消”“能不能取消”“是否可以取消”等取消资格问题时，pendingAction必须为NONE，confirmationRequired必须为false。对于取消资格问题，只回答是否允许取消和原因，不能主动请求用户确认取消。
+                        2. 只有用户明确使用“帮我取消”“我要取消”“请取消”“立即取消”等表达，明确要求执行取消操作时，才可以考虑生成CANCEL_ORDER。询问是否可以取消不属于执行请求。
+                        3. 用户明确要求取消订单，但没有提供一个明确订单编号时，pendingAction必须为NONE，confirmationRequired必须为false，并在answer中询问订单编号。
+                        4. 用户明确要求取消一个订单，并且取消资格判断工具返回允许取消时，pendingAction必须为CANCEL_ORDER，confirmationRequired必须为true，并在answer中请求用户确认。
+                        5. 用户明确要求取消订单，但取消资格判断工具返回不允许取消时，pendingAction必须为NONE，confirmationRequired必须为false，并在answer中说明不能取消的原因。
+                        6. pendingAction为NONE时，confirmationRequired只能为false。
+                        7. pendingAction不为NONE时，confirmationRequired只能为true。
+                        8. 即使用户表示确认，当前阶段也不能声称订单已经取消。
                         """)
 
                 .defaultAdvisors(
@@ -77,14 +92,13 @@ public class AgentService {
         if (message == null || message.isBlank()) {
             throw new IllegalArgumentException("用户问题不能为空");
         }
-        return chatClient
+        AgentModelResponse modelResponse = chatClient
                 .prompt()
-                //用户发的消息
                 .user(message)
-                //会话id 开启记忆功能
                 .advisors(advisorSpec -> advisorSpec.param(ChatMemory.CONVERSATION_ID, conversationId))
                 .call()
-                .entity(AgentChatResponse.class);
+                .entity(AgentModelResponse.class);
+        return AgentChatResponse.from(modelResponse);
     }
 
 }
