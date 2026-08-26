@@ -70,4 +70,14 @@
           AND expires_at > #{confirmedAt}
     </update>
 
+    <!-- 将有效的待确认动作原子更新为已放弃 -->
+    <update id="rejectPendingAction">
+        UPDATE agent_pending_action
+        SET status = 'CANCELLED',
+            updated_at = #{rejectedAt}
+        WHERE action_id = #{actionId}
+          AND status = 'PENDING'
+          AND expires_at > #{rejectedAt}
+    </update>
+
 </mapper>

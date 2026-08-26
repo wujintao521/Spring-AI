@@ -35,4 +35,12 @@ public interface AgentPendingActionService {
      * @return 确认成功后的动作；动作无效时返回空
      */
     Optional<AgentPendingAction> confirmPendingAction(String actionId);
+
+    /**
+     * 放弃一条尚未过期的待确认动作。
+     *
+     * @param actionId 待确认动作唯一编号
+     * @return 放弃成功后的动作；动作无效时返回空
+     */
+    Optional<AgentPendingAction> rejectPendingAction(String actionId);
 }

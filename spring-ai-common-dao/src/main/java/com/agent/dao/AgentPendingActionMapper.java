@@ -38,4 +38,15 @@ public interface AgentPendingActionMapper {
      * @return 受影响的记录数；1表示确认成功，0表示动作无效
      */
     int confirmPendingAction(@Param("actionId") String actionId, @Param("confirmedAt") LocalDateTime confirmedAt);
+
+    /**
+     * 将有效的待确认动作原子更新为已放弃。
+     *
+     * 只有当前状态为PENDING，并且尚未过期时才能更新成功。
+     *
+     * @param actionId 待确认动作唯一编号
+     * @param rejectedAt 用户放弃时间
+     * @return 受影响的记录数；1表示放弃成功，0表示动作无效
+     */
+    int rejectPendingAction(@Param("actionId") String actionId, @Param("rejectedAt") LocalDateTime rejectedAt);
 }

@@ -96,4 +96,20 @@ public class AgentPendingActionServiceImpl implements AgentPendingActionService 
         }
         return Optional.ofNullable(agentPendingActionMapper.selectByActionId(actionId));
     }
+
+    /**
+     * 原子放弃一条尚未过期的待确认动作。
+     */
+    @Override
+    public Optional<AgentPendingAction> rejectPendingAction(String actionId) {
+        if (actionId == null || actionId.isBlank()) {
+            throw new IllegalArgumentException("待确认动作编号不能为空");
+        }
+        LocalDateTime rejectedAt = LocalDateTime.now();
+        int affectedRows = agentPendingActionMapper.rejectPendingAction(actionId, rejectedAt);
+        if (affectedRows != 1) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(agentPendingActionMapper.selectByActionId(actionId));
+    }
 }
