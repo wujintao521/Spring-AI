@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.agent.dao.AgentPendingActionMapper">
+
+    <!-- Agent待确认动作查询结果映射 -->
+    <resultMap id="agentPendingActionResultMap" type="com.agent.entity.AgentPendingAction">
+        <id property="id" column="id"/>
+        <result property="actionId" column="action_id"/>
+        <result property="conversationId" column="conversation_id"/>
+        <result property="actionType" column="action_type" javaType="com.agent.enums.AgentActionEnum"/>
+        <result property="orderNo" column="order_no"/>
+        <result property="status" column="status" javaType="com.agent.enums.PendingActionStatusEnum"/>
+        <result property="expiresAt" column="expires_at"/>
+        <result property="confirmedAt" column="confirmed_at"/>
+        <result property="executedAt" column="executed_at"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <!-- 公共查询字段 -->
+    <sql id="agentPendingActionColumns">
+        id,
+        action_id,
+        conversation_id,
+        action_type,
+        order_no,
+        status,
+        expires_at,
+        confirmed_at,
+        executed_at,
+        created_at,
+        updated_at
+    </sql>
+
+    <!-- 新增待确认动作 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO agent_pending_action (
+            action_id,
+            conversation_id,
+            action_type,
+            order_no,
+            status,
+            expires_at
+        ) VALUES (
+            #{actionId},
+            #{conversationId},
+            #{actionType},
+            #{orderNo},
+            #{status},
+            #{expiresAt}
+        )
+    </insert>
+
+    <!-- 根据动作唯一编号查询待确认动作 -->
+    <select id="selectByActionId" resultMap="agentPendingActionResultMap">
+        SELECT
+        <include refid="agentPendingActionColumns"/>
+        FROM agent_pending_action
+        WHERE action_id = #{actionId}
+        LIMIT 1
+    </select>
+
+    <!-- 将有效的待确认动作原子更新为已确认 -->
+    <update id="confirmPendingAction">
+        UPDATE agent_pending_action
+        SET status = 'CONFIRMED',
+            confirmed_at = #{confirmedAt}
+        WHERE action_id = #{actionId}
+          AND status = 'PENDING'
+          AND expires_at > #{confirmedAt}
+    </update>
+
+</mapper>

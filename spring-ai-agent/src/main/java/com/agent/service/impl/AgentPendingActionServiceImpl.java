@@ -85,12 +85,15 @@ public class AgentPendingActionServiceImpl implements AgentPendingActionService 
      * 原子确认一条尚未过期的待确认动作。
      */
     @Override
-    public boolean confirmPendingAction(String actionId) {
+    public Optional<AgentPendingAction> confirmPendingAction(String actionId) {
         if (actionId == null || actionId.isBlank()) {
             throw new IllegalArgumentException("待确认动作编号不能为空");
         }
-
         LocalDateTime confirmedAt = LocalDateTime.now();
-        return agentPendingActionMapper.confirmPendingAction(actionId, confirmedAt) == 1;
+        int affectedRows = agentPendingActionMapper.confirmPendingAction(actionId, confirmedAt);
+        if (affectedRows != 1) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(agentPendingActionMapper.selectByActionId(actionId));
     }
 }

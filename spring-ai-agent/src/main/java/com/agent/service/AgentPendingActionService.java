@@ -32,7 +32,7 @@ public interface AgentPendingActionService {
      * 确认一条尚未过期的待确认动作。
      *
      * @param actionId 待确认动作唯一编号
-     * @return true表示确认成功，false表示动作无效
+     * @return 确认成功后的动作；动作无效时返回空
      */
-    boolean confirmPendingAction(String actionId);
+    Optional<AgentPendingAction> confirmPendingAction(String actionId);
 }

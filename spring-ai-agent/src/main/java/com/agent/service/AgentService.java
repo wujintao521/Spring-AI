@@ -1,6 +1,7 @@
 package com.agent.service;
 
 
+import com.agent.enums.AgentActionEnum;
 import com.agent.response.AgentChatResponse;
 import com.agent.response.AgentModelResponse;
 import com.agent.tool.DateTimeTool;
@@ -19,6 +20,8 @@ public class AgentService {
      */
     private final ChatClient chatClient;
 
+    private final AgentPendingActionService agentPendingActionService;
+
     /**
      * 通过构造方法注入 ChatClient.Builder。
      *
@@ -29,7 +32,9 @@ public class AgentService {
                         ChatMemory chatMemory,
                         DateTimeTool dateTimeTool,
                         TradeOrderTool tradeOrderTool,
-                        TradeOrderCancellationTool tradeOrderCancellationTool) {
+                        TradeOrderCancellationTool tradeOrderCancellationTool,
+                        AgentPendingActionService agentPendingActionService) {
+        this.agentPendingActionService = agentPendingActionService;
         this.chatClient = chatClientBuilder
                 .defaultSystem("""
                         你是一个严谨、友好的中文 AI 助手。
@@ -98,7 +103,15 @@ public class AgentService {
                 .advisors(advisorSpec -> advisorSpec.param(ChatMemory.CONVERSATION_ID, conversationId))
                 .call()
                 .entity(AgentModelResponse.class);
-        return AgentChatResponse.from(modelResponse);
+
+        String actionId = null;
+        if (modelResponse.pendingAction() != AgentActionEnum.NONE) {
+            String orderNo = modelResponse.relatedOrderNos().get(0);
+            actionId = agentPendingActionService
+                    .createPendingAction(conversationId, modelResponse.pendingAction(), orderNo)
+                    .getActionId();
+        }
+        return AgentChatResponse.from(modelResponse, actionId);
     }
 
 }
