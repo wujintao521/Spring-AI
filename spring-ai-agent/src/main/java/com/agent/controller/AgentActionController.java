@@ -1,11 +1,15 @@
 package com.agent.controller;
 
 import com.agent.request.AgentActionConfirmationRequest;
+import com.agent.request.AgentActionExecutionRequest;
 import com.agent.request.AgentActionRejectionRequest;
 import com.agent.response.AgentActionConfirmationResponse;
+import com.agent.response.AgentActionExecutionResponse;
 import com.agent.response.AgentActionRejectionResponse;
 import com.agent.response.ApiResponse;
+import com.agent.service.AgentActionExecutionService;
 import com.agent.service.AgentPendingActionService;
+import com.alibaba.fastjson2.JSONObject;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -22,9 +26,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class AgentActionController {
 
     private final AgentPendingActionService agentPendingActionService;
+    private final AgentActionExecutionService agentActionExecutionService;
 
-    public AgentActionController(AgentPendingActionService agentPendingActionService) {
+    public AgentActionController(AgentPendingActionService agentPendingActionService,AgentActionExecutionService agentActionExecutionService) {
         this.agentPendingActionService = agentPendingActionService;
+        this.agentActionExecutionService = agentActionExecutionService;
     }
 
     /**
@@ -37,6 +43,7 @@ public class AgentActionController {
     public ApiResponse<AgentActionConfirmationResponse> confirm(
             @Valid @RequestBody AgentActionConfirmationRequest request) {
         log.info("用户确认Agent待执行动作，actionId={}", request.actionId());
+        log.info("用户确认Agent待执行动作，请求报文={}", JSONObject.toJSONString(request));
         return agentPendingActionService
                 .confirmPendingAction(request.actionId())
                 .map(AgentActionConfirmationResponse::from)
@@ -57,6 +64,7 @@ public class AgentActionController {
     public ApiResponse<AgentActionRejectionResponse> reject(
             @Valid @RequestBody AgentActionRejectionRequest request) {
         log.info("用户放弃Agent待执行动作，actionId={}", request.actionId());
+        log.info("用户放弃Agent待执行动作，请求报文={}", JSONObject.toJSONString(request));
         return agentPendingActionService
                 .rejectPendingAction(request.actionId())
                 .map(AgentActionRejectionResponse::from)
@@ -66,4 +74,20 @@ public class AgentActionController {
                         "待确认动作无效、已处理或已过期"
                 ));
     }
+
+    /**
+     * 执行一条已经获得用户确认的业务动作。
+     *
+     * @param request 动作执行请求
+     * @return 动作执行结果
+     */
+    @PostMapping("/execute")
+    public ApiResponse<AgentActionExecutionResponse> execute(
+            @Valid @RequestBody AgentActionExecutionRequest request) {
+        log.info("执行已确认的Agent业务动作，actionId={}", request.actionId());
+        log.info("执行已确认的Agent业务动作，请求报文={}", JSONObject.toJSONString(request));
+        AgentActionExecutionResponse response = agentActionExecutionService.executeConfirmedAction(request.actionId());
+        return ApiResponse.success(response);
+    }
+
 }

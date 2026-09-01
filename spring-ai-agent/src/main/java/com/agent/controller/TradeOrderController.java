@@ -3,6 +3,8 @@ package com.agent.controller;
 import com.agent.entity.TradeOrder;
 import com.agent.response.ApiResponse;
 import com.agent.service.TradeOrderService;
+import com.alibaba.fastjson2.JSONObject;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -13,6 +15,7 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/api/orders")
+@Slf4j
 public class TradeOrderController {
 
     private final TradeOrderService tradeOrderService;
@@ -29,6 +32,7 @@ public class TradeOrderController {
      */
     @GetMapping("/{orderNo}")
     public ApiResponse<TradeOrder> getByOrderNo(@PathVariable String orderNo) {
+        log.info("根据订单编号查询订单，请求报文={}", orderNo);
         return tradeOrderService.getByOrderNo(orderNo)
                 .map(ApiResponse::success)
                 .orElseGet(() -> ApiResponse.failure(40401, "订单不存在"));
@@ -42,6 +46,7 @@ public class TradeOrderController {
      */
     @GetMapping
     public ApiResponse<List<TradeOrder>> listByCustomerName(@RequestParam String customerName) {
+        log.info("根据客户姓名查询订单列表，请求报文={}", customerName);
         List<TradeOrder> tradeOrders = tradeOrderService.listByCustomerName(customerName);
         return ApiResponse.success(tradeOrders);
     }

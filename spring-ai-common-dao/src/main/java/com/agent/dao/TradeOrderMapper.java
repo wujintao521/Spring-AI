@@ -3,6 +3,7 @@ package com.agent.dao;
 import com.agent.entity.TradeOrder;
 import org.apache.ibatis.annotations.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -33,4 +34,16 @@ public interface TradeOrderMapper {
      * @return 客户订单列表；没有订单时返回空集合
      */
     List<TradeOrder> selectListByCustomerName(@Param("customerName") String customerName);
+
+    /**
+     * 将仍允许取消的订单原子更新为已取消。
+     *
+     * 只有待付款或已付款状态的订单才能更新成功，
+     * 防止订单已经发货后仍被并发取消。
+     *
+     * @param orderNo 业务订单编号
+     * @param updatedAt 订单更新时间
+     * @return 受影响的记录数；1表示取消成功，0表示订单不存在或状态不允许取消
+     */
+    int cancelCancellableOrder(@Param("orderNo") String orderNo, @Param("updatedAt") LocalDateTime updatedAt);
 }
