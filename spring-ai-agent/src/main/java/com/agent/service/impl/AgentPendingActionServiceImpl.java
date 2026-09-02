@@ -3,8 +3,11 @@ package com.agent.service.impl;
 import com.agent.dao.AgentPendingActionMapper;
 import com.agent.entity.AgentPendingAction;
 import com.agent.enums.AgentActionEnum;
+import com.agent.enums.BusinessErrorCodeEnum;
 import com.agent.enums.PendingActionStatusEnum;
+import com.agent.exception.BusinessException;
 import com.agent.service.AgentPendingActionService;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -40,15 +43,15 @@ public class AgentPendingActionServiceImpl implements AgentPendingActionService 
     @Override
     public AgentPendingAction createPendingAction(String conversationId, AgentActionEnum actionType, String orderNo) {
         if (conversationId == null || conversationId.isBlank()) {
-            throw new IllegalArgumentException("会话ID不能为空");
+            throw new BusinessException("待执行动作编号不能为空");
         }
 
         if (actionType == null || actionType == AgentActionEnum.NONE) {
-            throw new IllegalArgumentException("待确认动作类型不合法");
+            throw new BusinessException("待执行动作不存在");
         }
 
         if (orderNo == null || !ORDER_NO_PATTERN.matcher(orderNo).matches()) {
-            throw new IllegalArgumentException("订单编号格式不正确");
+            throw new BusinessException("订单编号格式不正确");
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -63,7 +66,7 @@ public class AgentPendingActionServiceImpl implements AgentPendingActionService 
 
         int affectedRows = agentPendingActionMapper.insert(pendingAction);
         if (affectedRows != 1) {
-            throw new IllegalStateException("创建待确认动作失败");
+            throw new BusinessException("创建待确认动作失败");
         }
 
         return pendingAction;
@@ -87,7 +90,7 @@ public class AgentPendingActionServiceImpl implements AgentPendingActionService 
     @Override
     public Optional<AgentPendingAction> confirmPendingAction(String actionId) {
         if (actionId == null || actionId.isBlank()) {
-            throw new IllegalArgumentException("待确认动作编号不能为空");
+            throw new BusinessException("待确认动作编号不能为空");
         }
         LocalDateTime confirmedAt = LocalDateTime.now();
         int affectedRows = agentPendingActionMapper.confirmPendingAction(actionId, confirmedAt);
@@ -103,7 +106,7 @@ public class AgentPendingActionServiceImpl implements AgentPendingActionService 
     @Override
     public Optional<AgentPendingAction> rejectPendingAction(String actionId) {
         if (actionId == null || actionId.isBlank()) {
-            throw new IllegalArgumentException("待确认动作编号不能为空");
+            throw new BusinessException("待确认动作编号不能为空");
         }
         LocalDateTime rejectedAt = LocalDateTime.now();
         int affectedRows = agentPendingActionMapper.rejectPendingAction(actionId, rejectedAt);
