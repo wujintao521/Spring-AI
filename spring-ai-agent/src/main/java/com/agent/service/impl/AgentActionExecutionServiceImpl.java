@@ -7,6 +7,7 @@ import com.agent.entity.TradeOrder;
 import com.agent.enums.AgentActionEnum;
 import com.agent.enums.OrderStatusEnum;
 import com.agent.enums.PendingActionStatusEnum;
+import com.agent.exception.BusinessException;
 import com.agent.response.AgentActionExecutionResponse;
 import com.agent.service.AgentActionExecutionService;
 import org.springframework.stereotype.Service;
@@ -44,12 +45,12 @@ public class AgentActionExecutionServiceImpl implements AgentActionExecutionServ
     @Transactional(rollbackFor = Exception.class)
     public AgentActionExecutionResponse executeConfirmedAction(String actionId) {
         if (actionId == null || actionId.isBlank()) {
-            throw new IllegalArgumentException("待执行动作编号不能为空");
+            throw new BusinessException("待执行动作编号不能为空");
         }
 
         AgentPendingAction pendingAction = agentPendingActionMapper.selectByActionIdForUpdate(actionId.strip());
         if (pendingAction == null) {
-            throw new IllegalArgumentException("待执行动作不存在");
+            throw new BusinessException("待执行动作不存在");
         }
 
         validateActionType(pendingAction);
@@ -59,12 +60,12 @@ public class AgentActionExecutionServiceImpl implements AgentActionExecutionServ
         }
 
         if (pendingAction.getStatus() != PendingActionStatusEnum.CONFIRMED) {
-            throw new IllegalStateException("待执行动作尚未确认或当前状态不允许执行");
+            throw new BusinessException("待执行动作尚未确认或当前状态不允许执行");
         }
 
         LocalDateTime executedAt = LocalDateTime.now();
         if (pendingAction.getExpiresAt() == null || !pendingAction.getExpiresAt().isAfter(executedAt)) {
-            throw new IllegalStateException("待执行动作已经过期");
+            throw new BusinessException("待执行动作已经过期");
         }
 
         int cancelledRows = tradeOrderMapper.cancelCancellableOrder(pendingAction.getOrderNo(), executedAt);

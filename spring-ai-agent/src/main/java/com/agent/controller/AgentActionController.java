@@ -1,5 +1,6 @@
 package com.agent.controller;
 
+import com.agent.exception.BusinessException;
 import com.agent.request.AgentActionConfirmationRequest;
 import com.agent.request.AgentActionExecutionRequest;
 import com.agent.request.AgentActionRejectionRequest;
@@ -48,10 +49,7 @@ public class AgentActionController {
                 .confirmPendingAction(request.actionId())
                 .map(AgentActionConfirmationResponse::from)
                 .map(ApiResponse::success)
-                .orElseGet(() -> ApiResponse.failure(
-                        40901,
-                        "待确认动作无效、已处理或已过期"
-                ));
+                .orElseThrow(() -> new BusinessException("待确认动作无效、已处理或已过期"));
     }
 
     /**
@@ -69,10 +67,7 @@ public class AgentActionController {
                 .rejectPendingAction(request.actionId())
                 .map(AgentActionRejectionResponse::from)
                 .map(ApiResponse::success)
-                .orElseGet(() -> ApiResponse.failure(
-                        40902,
-                        "待确认动作无效、已处理或已过期"
-                ));
+                .orElseThrow(() -> new BusinessException("待确认动作无效、已处理或已过期"));
     }
 
     /**

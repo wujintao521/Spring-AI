@@ -3,6 +3,7 @@ package com.agent.exception;
 import com.agent.response.ApiResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.ai.tool.execution.ToolExecutionException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -25,8 +26,7 @@ public class GlobalExceptionHandler {
      * 处理明确的业务异常。
      */
     @ExceptionHandler(BusinessException.class)
-    public ResponseEntity<ApiResponse<Void>> handleBusinessException(
-            BusinessException exception) {
+    public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException exception) {
         log.warn("业务处理失败，code={}，message={}", exception.getCode(), exception.getMessage());
         ApiResponse<Void> response = ApiResponse.failure(exception.getCode(), exception.getMessage());
         return ResponseEntity.status(exception.getHttpStatus()).body(response);
@@ -57,10 +57,7 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiResponse<Void> handleMessageNotReadableException(
             HttpMessageNotReadableException exception) {
-        return ApiResponse.failure(
-                40002,
-                "请求体格式错误"
-        );
+        return ApiResponse.failure(40002, "请求体格式错误");
     }
 
     /**
@@ -70,10 +67,24 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ApiResponse<Void> handleException(Exception exception) {
         log.error("系统发生未处理异常", exception);
-
-        return ApiResponse.failure(
-                50000,
-                "系统内部错误"
-        );
+        return ApiResponse.failure(50000, "系统内部错误");
     }
+
+    /**
+     * 处理Agent工具执行异常。
+     *
+     * 如果工具内部抛出业务异常，则返回具体业务信息；
+     * 其他工具异常统一作为系统异常处理。
+     */
+    @ExceptionHandler(ToolExecutionException.class)
+    public ResponseEntity<ApiResponse<Void>> handleToolExecutionException(ToolExecutionException exception) {
+        Throwable cause = exception.getCause();
+        if (cause instanceof BusinessException businessException) {
+            return handleBusinessException(businessException);
+        }
+        log.error("Agent工具执行失败，toolName={}", exception.getToolDefinition().name(), exception);
+        ApiResponse<Void> response = ApiResponse.failure(50000, "系统内部错误");
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+
 }

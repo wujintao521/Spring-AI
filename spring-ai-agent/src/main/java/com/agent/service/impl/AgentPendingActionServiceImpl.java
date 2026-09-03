@@ -3,11 +3,9 @@ package com.agent.service.impl;
 import com.agent.dao.AgentPendingActionMapper;
 import com.agent.entity.AgentPendingAction;
 import com.agent.enums.AgentActionEnum;
-import com.agent.enums.BusinessErrorCodeEnum;
 import com.agent.enums.PendingActionStatusEnum;
 import com.agent.exception.BusinessException;
 import com.agent.service.AgentPendingActionService;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -43,11 +41,11 @@ public class AgentPendingActionServiceImpl implements AgentPendingActionService 
     @Override
     public AgentPendingAction createPendingAction(String conversationId, AgentActionEnum actionType, String orderNo) {
         if (conversationId == null || conversationId.isBlank()) {
-            throw new BusinessException("待执行动作编号不能为空");
+            throw new BusinessException("会话ID不能为空");
         }
 
         if (actionType == null || actionType == AgentActionEnum.NONE) {
-            throw new BusinessException("待执行动作不存在");
+            throw new BusinessException("待确认动作类型不合法");
         }
 
         if (orderNo == null || !ORDER_NO_PATTERN.matcher(orderNo).matches()) {

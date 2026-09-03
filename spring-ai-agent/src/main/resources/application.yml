@@ -19,6 +19,9 @@ spring:
       connection-timeout: 30000
       validation-timeout: 5000
   ai:
+    tools:
+      # Tool执行失败时抛出异常，由后端统一异常处理
+      throw-exception-on-error: true
     model:
       # 开启 OpenAI 协议的聊天模型
       chat: openai
