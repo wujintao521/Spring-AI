@@ -16,7 +16,9 @@ spring:
       pool-name: SpringAiHikariPool
       minimum-idle: 1
       maximum-pool-size: 5
+      #最多等待30秒从连接池获取连接
       connection-timeout: 30000
+      #最多等待5秒验证数据库连接是否有效
       validation-timeout: 5000
   ai:
     tools:
@@ -25,8 +27,8 @@ spring:
     model:
       # 开启 OpenAI 协议的聊天模型
       chat: openai
-      # 暂时不创建向量模型
-      embedding: none
+      # 向量模型
+      embedding: openai
       # 暂时不创建图片生成模型
       image: none
       # 暂时不创建内容审核模型
@@ -39,6 +41,10 @@ spring:
       # 从 Windows 环境变量读取百炼 API Key
       api-key: ${DASHSCOPE_API_KEY}
       base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+      # 单次大模型HTTP请求最多等待30秒
+      timeout: 30s
+      # 大模型请求发生临时故障时最多重试2次
+      max-retries: 2
       chat:
         # 实际调用的千问模型
         model: qwen-flash
@@ -49,6 +55,31 @@ spring:
         # 关闭思考模式
         extra-body:
           enable_thinking: false
+      embedding:
+        # 用于把知识文本和用户问题转换成向量
+        model: text-embedding-v4
+        # 生成1024维向量
+        dimensions: 1024
+        # 单次向量模型请求超时时间
+        timeout: 30s
+        # 向量模型临时调用失败时的重试次数
+        max-retries: 2
+    vectorstore:
+      qdrant:
+        # Qdrant服务器地址
+        host: ${QDRANT_HOST}
+        # Qdrant的gRPC端口
+        port: 6334
+        # Qdrant访问密钥
+        api-key: ${QDRANT_API_KEY}
+        # 保存订单业务知识的集合
+        collection-name: trade_order_knowledge
+        # 保存知识原文的字段
+        content-field-name: doc_content
+        # 当前学习环境暂时未配置TLS
+        use-tls: false
+        # 集合不存在时自动创建
+        initialize-schema: true
     # 通过MySQL存储会话记忆
     chat:
       memory:
@@ -66,3 +97,5 @@ mybatis:
   configuration:
     # 自动把数据库的 order_no 映射成 Java 的 orderNo
     map-underscore-to-camel-case: true
+    # 单条SQL最多执行5秒
+    default-statement-timeout: 5
