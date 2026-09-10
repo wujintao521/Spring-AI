@@ -40,14 +40,17 @@ public class OrderKnowledgeController {
     }
 
     /**
-     * 检索与问题相关的订单知识。
+     * 在指定分类中检索与问题相关的订单知识。
      *
      * @param question 用户问题
+     * @param category 知识分类，默认查询订单取消规则
      * @return 命中的知识文档
      */
     @GetMapping("/search")
-    public ApiResponse<List<OrderKnowledgeResponse>> searchKnowledge(@RequestParam("question") String question) {
-        List<Document> documents = orderKnowledgeService.searchKnowledge(question);
+    public ApiResponse<List<OrderKnowledgeResponse>> searchKnowledge(
+            @RequestParam("question") String question,
+            @RequestParam(value = "category", defaultValue = "ORDER_CANCELLATION") String category) {
+        List<Document> documents = orderKnowledgeService.searchKnowledge(question, category);
         List<OrderKnowledgeResponse> results = documents.stream().map(document -> {
             String title = String.valueOf(document.getMetadata().getOrDefault("title", ""));
             return new OrderKnowledgeResponse(document.getId(), title, document.getText(), document.getScore());

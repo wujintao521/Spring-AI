@@ -4,11 +4,15 @@ import com.agent.exception.BusinessException;
 import com.agent.service.OrderKnowledgeService;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.document.Document;
+import org.springframework.ai.reader.TextReader;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.ai.vectorstore.filter.FilterExpressionBuilder;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -90,11 +94,32 @@ public class OrderKnowledgeServiceImpl implements OrderKnowledgeService {
     }
 
     /**
-     * 将问题转换成向量，并检索最相关的三条知识。
+     * 默认检索订单取消类知识。
      */
     @Override
     public List<Document> searchKnowledge(String question) {
-        SearchRequest request = SearchRequest.builder().query(question).topK(3).build();
+        return searchKnowledge(question, "ORDER_CANCELLATION");
+    }
+
+    /**
+     * 在指定分类中检索相似度达到阈值的知识，最多返回三条。
+     */
+    @Override
+    public List<Document> searchKnowledge(String question, String category) {
+        if (question == null || question.isBlank()) {
+            throw new BusinessException("用户问题不能为空");
+        }
+        if (category == null || category.isBlank()) {
+            throw new BusinessException("知识分类不能为空");
+        }
+
+        FilterExpressionBuilder filterBuilder = new FilterExpressionBuilder();
+        SearchRequest request = SearchRequest.builder()
+                .query(question)
+                .topK(3)
+                .similarityThreshold(0.70)
+                .filterExpression(filterBuilder.eq("category", category.trim()).build())
+                .build();
         return vectorStore.similaritySearch(request);
     }
 
@@ -129,5 +154,61 @@ public class OrderKnowledgeServiceImpl implements OrderKnowledgeService {
             throw new BusinessException("知识问答结果不能为空");
         }
         return answer;
+    }
+
+    /**
+     * 读取订单规则文件，按空行切片后写入向量数据库。
+     */
+    @Override
+    public int importFileKnowledge() {
+        String source = "knowledge/order-cancellation.txt";
+
+        // 从项目classpath读取文件，打包成JAR后也可以使用。
+        TextReader reader = new TextReader(new ClassPathResource(source));
+        reader.setCharset(StandardCharsets.UTF_8);
+        List<Document> sourceDocuments = reader.get();
+
+        if (sourceDocuments.isEmpty()) {
+            throw new BusinessException("知识文件没有可读取的内容");
+        }
+
+        String text = sourceDocuments.get(0).getText();
+        if (text == null || text.isBlank()) {
+            throw new BusinessException("知识文件内容不能为空");
+        }
+
+        // 统一换行符，按空行划分段落。
+        String normalizedText = text.replace("\r\n", "\n").replace("\r", "\n").strip();
+        String[] sections = normalizedText.split("\\n\\s*\\n");
+
+        // 当前文件约定：第一段是文档标题，其余段落是规则章节。
+        if (sections.length < 2) {
+            throw new BusinessException("知识文件需要包含标题和用空行分隔的规则章节");
+        }
+
+        String documentTitle = sections[0].strip();
+        List<Document> chunks = new ArrayList<>();
+
+        for (int i = 1; i < sections.length; i++) {
+            String section = sections[i].strip();
+            String sectionTitle = section.lines().findFirst().orElse("");
+            String documentKey = source + ":" + sectionTitle;
+            String documentId = UUID.nameUUIDFromBytes(documentKey.getBytes(StandardCharsets.UTF_8)).toString();
+
+            Map<String, Object> metadata = Map.of(
+                    "title", documentTitle + " - " + sectionTitle,
+                    "category", "ORDER_CANCELLATION_FILE",
+                    "source", source,
+                    "section", sectionTitle,
+                    "version", "1"
+            );
+
+            // 每个片段包含章节标题和正文，便于独立检索。
+            chunks.add(new Document(documentId, section, metadata));
+        }
+
+        // 自动生成每个片段的向量，并写入Qdrant。
+        vectorStore.add(chunks);
+        return chunks.size();
     }
 }
