@@ -1,14 +1,17 @@
 package com.agent.service.impl;
 
+import com.agent.entity.KnowledgeDocument;
 import com.agent.exception.BusinessException;
 import com.agent.response.OrderKnowledgeAnswerResponse;
 import com.agent.response.OrderKnowledgeReference;
+import com.agent.service.KnowledgeDocumentService;
 import com.agent.service.OrderKnowledgeService;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.reader.TextReader;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.ai.vectorstore.filter.Filter;
 import org.springframework.ai.vectorstore.filter.FilterExpressionBuilder;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
@@ -32,13 +35,30 @@ public class OrderKnowledgeServiceImpl implements OrderKnowledgeService {
     private final ChatClient knowledgeChatClient;
 
     /**
+     * 当前订单规则文件的来源标识。
+     */
+    private static final String FILE_SOURCE = "knowledge/order-cancellation.txt";
+
+    /**
+     * 文件导入知识所属的分类。
+     */
+    private static final String FILE_CATEGORY = "ORDER_CANCELLATION_FILE";
+
+    /**
+     * 管理知识文档的生效版本。
+     */
+    private final KnowledgeDocumentService knowledgeDocumentService;
+
+    /**
      * 注入由Spring AI配置创建的向量存储组件。
      */
     /**
      * 注入向量存储组件并构建知识问答客户端。
      */
-    public OrderKnowledgeServiceImpl(VectorStore vectorStore, ChatClient.Builder chatClientBuilder) {
+    public OrderKnowledgeServiceImpl(VectorStore vectorStore, ChatClient.Builder chatClientBuilder,
+                                     KnowledgeDocumentService knowledgeDocumentService) {
         this.vectorStore = vectorStore;
+        this.knowledgeDocumentService = knowledgeDocumentService;
         this.knowledgeChatClient = chatClientBuilder.defaultSystem("""
             你是订单业务知识助手，请使用中文回答。
             只能依据提供的参考知识回答业务规则，不得编造政策或退款时限。
@@ -104,7 +124,7 @@ public class OrderKnowledgeServiceImpl implements OrderKnowledgeService {
     }
 
     /**
-     * 在指定分类中检索相似度达到阈值的知识，最多返回三条。
+     * 在指定分类中检索相关知识，文件知识只查询当前生效版本。
      */
     @Override
     public List<Document> searchKnowledge(String question, String category) {
@@ -115,12 +135,32 @@ public class OrderKnowledgeServiceImpl implements OrderKnowledgeService {
             throw new BusinessException("知识分类不能为空");
         }
 
+        String normalizedCategory = category.strip();
         FilterExpressionBuilder filterBuilder = new FilterExpressionBuilder();
+        Filter.Expression filterExpression = filterBuilder.eq("category", normalizedCategory).build();
+
+        // 当前文件知识分类对应一份订单规则文件。
+        if (FILE_CATEGORY.equals(normalizedCategory)) {
+            KnowledgeDocument document = knowledgeDocumentService.findBySourceAndCategory(
+                    FILE_SOURCE, FILE_CATEGORY);
+
+            // 没有发布过版本时，不检索旧数据或尚未发布的数据。
+            if (document == null || document.getActiveVersion() == null || document.getActiveVersion().isBlank()) {
+                return List.of();
+            }
+
+            filterExpression = filterBuilder.and(
+                    filterBuilder.eq("category", FILE_CATEGORY),
+                    filterBuilder.and(
+                            filterBuilder.eq("source", FILE_SOURCE),
+                            filterBuilder.eq("version", document.getActiveVersion())))
+                    .build();
+        }
         SearchRequest request = SearchRequest.builder()
                 .query(question)
                 .topK(3)
                 .similarityThreshold(0.70)
-                .filterExpression(filterBuilder.eq("category", category.trim()).build())
+                .filterExpression(filterExpression)
                 .build();
         return vectorStore.similaritySearch(request);
     }
@@ -173,7 +213,11 @@ public class OrderKnowledgeServiceImpl implements OrderKnowledgeService {
      */
     @Override
     public int importFileKnowledge() {
-        String source = "knowledge/order-cancellation.txt";
+        String source = FILE_SOURCE;
+        // 在向量写入之前读取管理记录，保留本次导入开始时的revision。
+        KnowledgeDocument original = knowledgeDocumentService.getOrCreate(source, FILE_CATEGORY);
+        // 每次导入使用独立版本，同一次导入的所有片段共享该版本。
+        String newVersion = UUID.randomUUID().toString();
 
         // 从项目classpath读取文件，打包成JAR后也可以使用。
         TextReader reader = new TextReader(new ClassPathResource(source));
@@ -204,23 +248,24 @@ public class OrderKnowledgeServiceImpl implements OrderKnowledgeService {
         for (int i = 1; i < sections.length; i++) {
             String section = sections[i].strip();
             String sectionTitle = section.lines().findFirst().orElse("");
-            String documentKey = source + ":" + sectionTitle;
+            // 版本隔离防止覆盖旧片段，段落序号避免相同章节标题产生重复ID。
+            String documentKey = source + ":" + FILE_CATEGORY + ":" + newVersion + ":" + i;
             String documentId = UUID.nameUUIDFromBytes(documentKey.getBytes(StandardCharsets.UTF_8)).toString();
-
             Map<String, Object> metadata = Map.of(
                     "title", documentTitle + " - " + sectionTitle,
-                    "category", "ORDER_CANCELLATION_FILE",
+                    "category", FILE_CATEGORY,
                     "source", source,
                     "section", sectionTitle,
-                    "version", "1"
+                    "version", newVersion
             );
 
             // 每个片段包含章节标题和正文，便于独立检索。
             chunks.add(new Document(documentId, section, metadata));
         }
-
-        // 自动生成每个片段的向量，并写入Qdrant。
+        // 新版本片段完整写入成功后，才允许发布。
         vectorStore.add(chunks);
+        // 使用导入开始时读取的revision尝试切换生效版本。
+        knowledgeDocumentService.publishVersion(original, newVersion, chunks.size());
         return chunks.size();
     }
 
@@ -229,11 +274,12 @@ public class OrderKnowledgeServiceImpl implements OrderKnowledgeService {
      */
     @Override
     public void deleteFileKnowledge() {
-        FilterExpressionBuilder filterBuilder = new FilterExpressionBuilder();
+        throw new BusinessException("知识库已启用版本管理，暂不支持直接删除全部文件知识");
+        /*FilterExpressionBuilder filterBuilder = new FilterExpressionBuilder();
         vectorStore.delete(filterBuilder.and(
                 filterBuilder.eq("source", "knowledge/order-cancellation.txt"),
                 filterBuilder.eq("category", "ORDER_CANCELLATION_FILE")
-        ).build());
+        ).build());*/
     }
 
 }

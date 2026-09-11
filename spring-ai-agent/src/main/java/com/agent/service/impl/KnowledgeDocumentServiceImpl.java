@@ -101,4 +101,18 @@ public class KnowledgeDocumentServiceImpl implements KnowledgeDocumentService {
             throw new BusinessException("知识文档已被其他请求更新，本次版本未发布，请重新导入");
         }
     }
+
+    /**
+     * 查询知识文档管理信息。
+     */
+    @Override
+    public KnowledgeDocument findBySourceAndCategory(String source, String category) {
+        if (source == null || source.isBlank()) {
+            throw new BusinessException("知识来源不能为空");
+        }
+        if (category == null || category.isBlank()) {
+            throw new BusinessException("知识分类不能为空");
+        }
+        return knowledgeDocumentMapper.selectBySourceAndCategory(source.strip(), category.strip());
+    }
 }

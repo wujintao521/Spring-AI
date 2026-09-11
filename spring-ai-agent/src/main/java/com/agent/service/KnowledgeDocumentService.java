@@ -24,4 +24,14 @@ public interface KnowledgeDocumentService {
      * @param chunkCount 新版本的片段数量
      */
     void publishVersion(KnowledgeDocument original, String newVersion, int chunkCount);
+
+    /**
+     * 查询知识文档管理信息，不创建记录。
+     *
+     * @param source 知识来源标识
+     * @param category 知识分类
+     * @return 文档管理信息；不存在时返回null
+     */
+    KnowledgeDocument findBySourceAndCategory(String source, String category);
+
 }
