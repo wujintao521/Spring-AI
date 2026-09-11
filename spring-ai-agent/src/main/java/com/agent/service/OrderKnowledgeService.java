@@ -1,5 +1,6 @@
 package com.agent.service;
 
+import com.agent.response.OrderKnowledgeAnswerResponse;
 import org.springframework.ai.document.Document;
 
 import java.util.List;
@@ -34,12 +35,12 @@ public interface OrderKnowledgeService {
     List<Document> searchKnowledge(String question, String category);
 
     /**
-     * 根据订单知识库回答问题。
+     * 根据订单知识回答问题，并返回参考片段。
      *
      * @param question 用户问题
-     * @return 基于知识库生成的回答
+     * @return 回答及本轮参考片段
      */
-    String answerQuestion(String question);
+    OrderKnowledgeAnswerResponse answerQuestion(String question);
 
     /**
      * 从文本文件导入订单知识。
@@ -47,4 +48,11 @@ public interface OrderKnowledgeService {
      * @return 本次成功提交的知识片段数量
      */
     int importFileKnowledge();
+
+    /**
+     * 删除订单规则文件对应的全部知识片段。
+     * 不删除原始文件。
+     */
+    void deleteFileKnowledge();
+
 }

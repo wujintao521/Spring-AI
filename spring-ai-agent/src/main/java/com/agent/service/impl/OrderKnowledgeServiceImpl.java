@@ -1,6 +1,8 @@
 package com.agent.service.impl;
 
 import com.agent.exception.BusinessException;
+import com.agent.response.OrderKnowledgeAnswerResponse;
+import com.agent.response.OrderKnowledgeReference;
 import com.agent.service.OrderKnowledgeService;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.document.Document;
@@ -98,7 +100,7 @@ public class OrderKnowledgeServiceImpl implements OrderKnowledgeService {
      */
     @Override
     public List<Document> searchKnowledge(String question) {
-        return searchKnowledge(question, "ORDER_CANCELLATION");
+        return searchKnowledge(question, "ORDER_CANCELLATION_FILE");
     }
 
     /**
@@ -124,36 +126,46 @@ public class OrderKnowledgeServiceImpl implements OrderKnowledgeService {
     }
 
     /**
-     * 检索相关知识，并交给聊天模型生成回答。
+     * 检索知识生成回答，同时返回本轮提供给模型的参考片段。
      */
     @Override
-    public String answerQuestion(String question) {
+    public OrderKnowledgeAnswerResponse answerQuestion(String question) {
         if (question == null || question.isBlank()) {
             throw new BusinessException("用户问题不能为空");
         }
 
-        // 使用问题向量检索相关知识。
         List<Document> documents = searchKnowledge(question);
         if (documents.isEmpty()) {
-            return "知识库中没有找到相关规则，暂时无法回答该问题。";
+            return new OrderKnowledgeAnswerResponse("知识库中没有找到相关规则，暂时无法回答该问题。", List.of());
         }
 
-        // 将检索到的知识原文组织成参考上下文。
         StringBuilder context = new StringBuilder();
+        List<OrderKnowledgeReference> references = new ArrayList<>();
+
         for (int i = 0; i < documents.size(); i++) {
             Document document = documents.get(i);
+            Map<String, Object> metadata = document.getMetadata();
+            String title = String.valueOf(metadata.getOrDefault("title", ""));
+            String source = String.valueOf(metadata.getOrDefault("source", ""));
+            String section = String.valueOf(metadata.getOrDefault("section", ""));
+
+            // 用同一批文档构造模型上下文和响应参考列表。
             context.append("参考知识").append(i + 1).append("：\n");
-            context.append("标题：").append(document.getMetadata().getOrDefault("title", "")).append("\n");
+            context.append("标题：").append(title).append("\n");
+            context.append("来源：").append(source).append("\n");
+            context.append("章节：").append(section).append("\n");
             context.append("正文：").append(document.getText()).append("\n\n");
+
+            references.add(new OrderKnowledgeReference(
+                    document.getId(), title, source, section, document.getText(), document.getScore()));
         }
 
         String prompt = "参考知识：\n" + context + "\n用户问题：\n" + question;
-        // 将问题和知识原文一起发送给聊天模型。
         String answer = knowledgeChatClient.prompt().user(prompt).call().content();
         if (answer == null || answer.isBlank()) {
             throw new BusinessException("知识问答结果不能为空");
         }
-        return answer;
+        return new OrderKnowledgeAnswerResponse(answer, references);
     }
 
     /**
@@ -211,4 +223,17 @@ public class OrderKnowledgeServiceImpl implements OrderKnowledgeService {
         vectorStore.add(chunks);
         return chunks.size();
     }
+
+    /**
+     * 根据来源和分类，删除订单规则文件对应的知识片段。
+     */
+    @Override
+    public void deleteFileKnowledge() {
+        FilterExpressionBuilder filterBuilder = new FilterExpressionBuilder();
+        vectorStore.delete(filterBuilder.and(
+                filterBuilder.eq("source", "knowledge/order-cancellation.txt"),
+                filterBuilder.eq("category", "ORDER_CANCELLATION_FILE")
+        ).build());
+    }
+
 }

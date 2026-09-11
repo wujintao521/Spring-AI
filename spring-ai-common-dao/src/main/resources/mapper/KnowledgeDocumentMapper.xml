@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.agent.dao.KnowledgeDocumentMapper">
+
+    <!-- 知识文档查询结果映射 -->
+    <resultMap id="knowledgeDocumentResultMap" type="com.agent.entity.KnowledgeDocument">
+        <id property="id" column="id"/>
+        <result property="source" column="source"/>
+        <result property="category" column="category"/>
+        <result property="activeVersion" column="active_version"/>
+        <result property="activeChunkCount" column="active_chunk_count"/>
+        <result property="revision" column="revision"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <!-- 新增文档时不发布任何版本 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO knowledge_document (source, category, active_version, active_chunk_count, revision)
+        VALUES (#{source}, #{category}, NULL, 0, 0)
+    </insert>
+
+    <!-- 根据唯一的来源和分类查询文档 -->
+    <select id="selectBySourceAndCategory" resultMap="knowledgeDocumentResultMap">
+        SELECT id, source, category, active_version, active_chunk_count, revision, created_at, updated_at
+        FROM knowledge_document
+        WHERE source = #{source}
+          AND category = #{category}
+    </select>
+
+    <!-- 乐观锁切换生效版本，调用方必须检查受影响的记录数 -->
+    <update id="switchActiveVersion">
+        UPDATE knowledge_document
+        SET active_version = #{document.activeVersion},
+            active_chunk_count = #{document.activeChunkCount},
+            revision = revision + 1,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{document.id}
+          AND revision = #{expectedRevision}
+    </update>
+
+</mapper>

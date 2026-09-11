@@ -1,6 +1,7 @@
 package com.agent.controller;
 
 import com.agent.response.ApiResponse;
+import com.agent.response.OrderKnowledgeAnswerResponse;
 import com.agent.response.OrderKnowledgeResponse;
 import com.agent.service.OrderKnowledgeService;
 import lombok.extern.slf4j.Slf4j;
@@ -49,7 +50,7 @@ public class OrderKnowledgeController {
     @GetMapping("/search")
     public ApiResponse<List<OrderKnowledgeResponse>> searchKnowledge(
             @RequestParam("question") String question,
-            @RequestParam(value = "category", defaultValue = "ORDER_CANCELLATION") String category) {
+            @RequestParam(value = "category", defaultValue = "ORDER_CANCELLATION_FILE") String category) {
         List<Document> documents = orderKnowledgeService.searchKnowledge(question, category);
         List<OrderKnowledgeResponse> results = documents.stream().map(document -> {
             String title = String.valueOf(document.getMetadata().getOrDefault("title", ""));
@@ -59,14 +60,39 @@ public class OrderKnowledgeController {
     }
 
     /**
-     * 根据知识库回答订单规则问题。
+     * 根据知识库回答问题，并返回参考片段。
      *
      * @param question 用户问题
-     * @return 统一格式的知识问答结果
+     * @return 统一格式的回答及参考片段
      */
     @GetMapping("/ask")
-    public ApiResponse<String> answerQuestion(@RequestParam("question") String question) {
-        String answer = orderKnowledgeService.answerQuestion(question);
-        return ApiResponse.success(answer);
+    public ApiResponse<OrderKnowledgeAnswerResponse> answerQuestion(@RequestParam("question") String question) {
+        OrderKnowledgeAnswerResponse response = orderKnowledgeService.answerQuestion(question);
+        return ApiResponse.success(response);
     }
+
+    /**
+     * 从项目内的文本文件导入订单知识。
+     *
+     * @return 本次成功提交的知识片段数量
+     */
+    @PostMapping("/import-file")
+    public ApiResponse<Integer> importFileKnowledge() {
+        int count = orderKnowledgeService.importFileKnowledge();
+        log.info("订单知识文件导入完成，片段数量={}", count);
+        return ApiResponse.success(count);
+    }
+
+    /**
+     * 删除订单规则文件对应的知识片段。
+     *
+     * @return 统一格式的操作结果
+     */
+    @DeleteMapping("/file")
+    public ApiResponse<String> deleteFileKnowledge() {
+        orderKnowledgeService.deleteFileKnowledge();
+        log.info("订单规则文件对应的知识片段删除操作完成");
+        return ApiResponse.success("文件知识删除操作完成");
+    }
+
 }
