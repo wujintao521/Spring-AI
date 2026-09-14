@@ -159,7 +159,7 @@ public class OrderKnowledgeServiceImpl implements OrderKnowledgeService {
         SearchRequest request = SearchRequest.builder()
                 .query(question)
                 .topK(3)
-                .similarityThreshold(0.70)
+                .similarityThreshold(0.65)
                 .filterExpression(filterExpression)
                 .build();
         return vectorStore.similaritySearch(request);
