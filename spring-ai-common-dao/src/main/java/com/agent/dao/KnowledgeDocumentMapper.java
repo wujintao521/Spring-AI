@@ -34,4 +34,12 @@ public interface KnowledgeDocumentMapper {
      * @return 1表示切换成功，0表示记录不存在或已被其他请求更新
      */
     int switchActiveVersion(@Param("document") KnowledgeDocument document, @Param("expectedRevision") Long expectedRevision);
+
+    /**
+     * 根据主键查询知识文档管理信息。
+     *
+     * @param id 文档主键
+     * @return 文档管理信息；不存在时返回null
+     */
+    KnowledgeDocument selectById(@Param("id") Long id);
 }

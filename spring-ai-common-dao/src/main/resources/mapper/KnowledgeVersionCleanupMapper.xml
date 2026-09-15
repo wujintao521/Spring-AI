@@ -15,12 +15,15 @@
         <result property="completedAt" column="completed_at"/>
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
+        <result property="executionToken" column="execution_token"/>
+        <result property="leaseExpiresAt" column="lease_expires_at"/>
     </resultMap>
 
     <!-- 公共查询字段 -->
     <sql id="cleanupColumns">
         id, document_id, version, status, eligible_at, retry_count,
-        next_retry_at, last_error, completed_at, created_at, updated_at
+        next_retry_at, last_error, completed_at, created_at, updated_at,
+        execution_token, lease_expires_at
     </sql>
 
     <!-- 只登记任务，不执行向量删除 -->
@@ -44,5 +47,73 @@
         ORDER BY id DESC
         LIMIT 50
     </select>
+
+    <!-- 条件更新领取任务，只有成功更新的请求才能继续 -->
+    <update id="tryStart">
+        UPDATE knowledge_version_cleanup c
+        INNER JOIN knowledge_document d ON d.id = c.document_id
+        SET c.status = 'PROCESSING',
+            c.execution_token = #{task.executionToken},
+            c.lease_expires_at = #{task.leaseExpiresAt},
+            c.retry_count = c.retry_count + CASE WHEN #{task.status} = 'FAILED' THEN 1 ELSE 0 END,
+            c.next_retry_at = NULL,
+            c.updated_at = #{now}
+        WHERE c.id = #{task.id}
+            AND c.document_id = #{task.documentId}
+            AND c.version = #{task.version}
+            AND c.eligible_at <![CDATA[ <= ]]> #{now}
+            AND c.status = #{task.status}
+            AND ( c.status = 'PENDING' OR ( c.status = 'FAILED'
+                AND c.next_retry_at IS NOT NULL
+                AND c.next_retry_at <![CDATA[ <= ]]> #{now}))
+        AND d.active_version IS NOT NULL
+        AND TRIM(d.active_version) != ''
+        AND d.active_version != c.version
+    </update>
+
+    <!-- 开始执行前，再次确认执行编号、有效期和当前生效版本 -->
+    <update id="beginExecution">
+        UPDATE knowledge_version_cleanup c
+        INNER JOIN knowledge_document d ON d.id = c.document_id
+        SET c.status = 'EXECUTING',
+        c.updated_at = #{now}
+        WHERE c.id = #{task.id}
+        AND c.document_id = #{task.documentId}
+        AND c.version = #{task.version}
+        AND c.status = 'PROCESSING'
+        AND c.execution_token = #{task.executionToken}
+        AND c.lease_expires_at > #{now}
+        AND c.eligible_at <![CDATA[ <= ]]> #{now}
+        AND d.active_version IS NOT NULL
+        AND TRIM(d.active_version) != ''
+        AND d.active_version != c.version
+    </update>
+
+    <!-- 完成状态只能由匹配的执行者回写 -->
+    <update id="markCompleted">
+        UPDATE knowledge_version_cleanup
+        SET status = 'COMPLETED',
+            completed_at = #{now},
+            next_retry_at = NULL,
+            last_error = NULL,
+            lease_expires_at = NULL,
+            updated_at = #{now}
+        WHERE id = #{taskId}
+            AND status = 'EXECUTING'
+            AND execution_token = #{executionToken}
+    </update>
+
+    <!-- 删除未确认成功时登记失败，保留任务用于重试 -->
+    <update id="markFailed">
+        UPDATE knowledge_version_cleanup
+        SET status = 'FAILED',
+            last_error = #{error},
+            next_retry_at = #{nextRetryAt},
+            lease_expires_at = NULL,
+            updated_at = #{now}
+        WHERE id = #{taskId}
+            AND status = 'EXECUTING'
+            AND execution_token = #{executionToken}
+    </update>
 
 </mapper>

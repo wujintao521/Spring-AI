@@ -71,4 +71,14 @@ public class KnowledgeVersionCleanup {
      */
     private LocalDateTime updatedAt;
 
+    /**
+     * 本次领取生成的执行标识，用于防止过期执行者修改任务状态。
+     */
+    private String executionToken;
+
+    /**
+     * 本次执行权的到期时间，供后续超时恢复使用。
+     */
+    private LocalDateTime leaseExpiresAt;
+
 }

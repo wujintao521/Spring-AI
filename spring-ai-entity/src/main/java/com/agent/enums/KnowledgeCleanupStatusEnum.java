@@ -11,9 +11,14 @@ public enum KnowledgeCleanupStatusEnum {
     PENDING,
 
     /**
-     * 正在执行清理。
+     * 已领取，等待开始执行清理。
      */
     PROCESSING,
+
+    /**
+     * 已开始执行向量清理。
+     */
+    EXECUTING,
 
     /**
      * 清理已完成。
@@ -24,5 +29,6 @@ public enum KnowledgeCleanupStatusEnum {
      * 本次清理失败，等待后续重试。
      */
     FAILED
+
 
 }

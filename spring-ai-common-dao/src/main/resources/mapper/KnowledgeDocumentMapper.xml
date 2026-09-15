@@ -39,4 +39,11 @@
           AND revision = #{expectedRevision}
     </update>
 
+    <!-- 根据主键查询文档管理信息 -->
+    <select id="selectById" resultMap="knowledgeDocumentResultMap">
+        SELECT id, source, category, active_version, active_chunk_count, revision, created_at, updated_at
+        FROM knowledge_document
+        WHERE id = #{id}
+    </select>
+
 </mapper>
