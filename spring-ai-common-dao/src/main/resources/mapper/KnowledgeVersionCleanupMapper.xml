@@ -76,17 +76,17 @@
         UPDATE knowledge_version_cleanup c
         INNER JOIN knowledge_document d ON d.id = c.document_id
         SET c.status = 'EXECUTING',
-        c.updated_at = #{now}
+            c.updated_at = #{now}
         WHERE c.id = #{task.id}
-        AND c.document_id = #{task.documentId}
-        AND c.version = #{task.version}
-        AND c.status = 'PROCESSING'
-        AND c.execution_token = #{task.executionToken}
-        AND c.lease_expires_at > #{now}
-        AND c.eligible_at <![CDATA[ <= ]]> #{now}
-        AND d.active_version IS NOT NULL
-        AND TRIM(d.active_version) != ''
-        AND d.active_version != c.version
+            AND c.document_id = #{task.documentId}
+            AND c.version = #{task.version}
+            AND c.status = 'PROCESSING'
+            AND c.execution_token = #{task.executionToken}
+            AND c.lease_expires_at > #{now}
+            AND c.eligible_at <![CDATA[ <= ]]> #{now}
+            AND d.active_version IS NOT NULL
+            AND TRIM(d.active_version) != ''
+            AND d.active_version != c.version
     </update>
 
     <!-- 完成状态只能由匹配的执行者回写 -->

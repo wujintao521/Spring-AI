@@ -1,9 +1,12 @@
 package com.agent.controller;
 
+import com.agent.request.KnowledgeChunkPreviewRequest;
 import com.agent.response.ApiResponse;
 import com.agent.response.OrderKnowledgeAnswerResponse;
 import com.agent.response.OrderKnowledgeResponse;
+import com.agent.service.KnowledgeChunkService;
 import com.agent.service.OrderKnowledgeService;
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.document.Document;
 import org.springframework.web.bind.annotation.*;
@@ -20,11 +23,14 @@ public class OrderKnowledgeController {
 
     private final OrderKnowledgeService orderKnowledgeService;
 
+    private final KnowledgeChunkService knowledgeChunkService;
+
     /**
-     * 注入订单知识库服务。
+     * 注入订单知识库服务和文本分块服务。
      */
-    public OrderKnowledgeController(OrderKnowledgeService orderKnowledgeService) {
+    public OrderKnowledgeController(OrderKnowledgeService orderKnowledgeService, KnowledgeChunkService knowledgeChunkService) {
         this.orderKnowledgeService = orderKnowledgeService;
+        this.knowledgeChunkService = knowledgeChunkService;
     }
 
     /**
@@ -95,4 +101,16 @@ public class OrderKnowledgeController {
         return ApiResponse.success("文件知识删除操作完成");
     }
 
+    /**
+     * 预览文本分块结果，不调用模型，也不写入知识库。
+     *
+     * @param request 文本及分块参数
+     * @return 按原文顺序排列的文本片段
+     */
+    @PostMapping("/preview-chunks")
+    public ApiResponse<List<String>> previewChunks(@Valid @RequestBody KnowledgeChunkPreviewRequest request) {
+        List<Document> chunks = knowledgeChunkService.splitText(request.text(), request.chunkSize());
+        List<String> contents = chunks.stream().map(Document::getText).toList();
+        return ApiResponse.success(contents);
+    }
 }
