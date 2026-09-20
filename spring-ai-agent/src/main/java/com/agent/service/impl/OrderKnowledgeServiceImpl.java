@@ -4,6 +4,7 @@ import com.agent.entity.KnowledgeDocument;
 import com.agent.exception.BusinessException;
 import com.agent.response.OrderKnowledgeAnswerResponse;
 import com.agent.response.OrderKnowledgeReference;
+import com.agent.service.KnowledgeChunkService;
 import com.agent.service.KnowledgeDocumentService;
 import com.agent.service.OrderKnowledgeService;
 import org.springframework.ai.chat.client.ChatClient;
@@ -50,15 +51,27 @@ public class OrderKnowledgeServiceImpl implements OrderKnowledgeService {
     private final KnowledgeDocumentService knowledgeDocumentService;
 
     /**
+     * 章节正文分块的目标 Token 数量，先使用200进行验证。
+     */
+    private static final int FILE_CHUNK_SIZE = 200;
+
+    /**
+     * 知识文本分块服务。
+     */
+    private final KnowledgeChunkService knowledgeChunkService;
+
+    /**
      * 注入由Spring AI配置创建的向量存储组件。
      */
     /**
      * 注入向量存储组件并构建知识问答客户端。
      */
     public OrderKnowledgeServiceImpl(VectorStore vectorStore, ChatClient.Builder chatClientBuilder,
-                                     KnowledgeDocumentService knowledgeDocumentService) {
+                                     KnowledgeDocumentService knowledgeDocumentService,
+                                     KnowledgeChunkService knowledgeChunkService) {
         this.vectorStore = vectorStore;
         this.knowledgeDocumentService = knowledgeDocumentService;
+        this.knowledgeChunkService = knowledgeChunkService;
         this.knowledgeChatClient = chatClientBuilder.defaultSystem("""
             你是订单业务知识助手，请使用中文回答。
             只能依据提供的参考知识回答业务规则，不得编造政策或退款时限。
@@ -158,7 +171,7 @@ public class OrderKnowledgeServiceImpl implements OrderKnowledgeService {
         }
         SearchRequest request = SearchRequest.builder()
                 .query(question)
-                .topK(3)
+                .topK(6)
                 .similarityThreshold(0.65)
                 .filterExpression(filterExpression)
                 .build();
@@ -209,7 +222,7 @@ public class OrderKnowledgeServiceImpl implements OrderKnowledgeService {
     }
 
     /**
-     * 读取订单规则文件，按空行切片后写入向量数据库。
+     * 读取订单规则文件，按章节组织知识，并对过长的章节正文进一步分块。
      */
     @Override
     public int importFileKnowledge() {
@@ -244,23 +257,44 @@ public class OrderKnowledgeServiceImpl implements OrderKnowledgeService {
 
         String documentTitle = sections[0].strip();
         List<Document> chunks = new ArrayList<>();
-
         for (int i = 1; i < sections.length; i++) {
             String section = sections[i].strip();
-            String sectionTitle = section.lines().findFirst().orElse("");
-            // 版本隔离防止覆盖旧片段，段落序号避免相同章节标题产生重复ID。
-            String documentKey = source + ":" + FILE_CATEGORY + ":" + newVersion + ":" + i;
-            String documentId = UUID.nameUUIDFromBytes(documentKey.getBytes(StandardCharsets.UTF_8)).toString();
-            Map<String, Object> metadata = Map.of(
-                    "title", documentTitle + " - " + sectionTitle,
-                    "category", FILE_CATEGORY,
-                    "source", source,
-                    "section", sectionTitle,
-                    "version", newVersion
-            );
 
-            // 每个片段包含章节标题和正文，便于独立检索。
-            chunks.add(new Document(documentId, section, metadata));
+            // 当前文件格式约定：章节第一行是标题，后续内容是正文。
+            int firstLineBreak = section.indexOf('\n');
+            if (firstLineBreak < 0) {
+                throw new BusinessException("第" + i + "个章节缺少正文，请将标题和正文分行");
+            }
+
+            String sectionTitle = section.substring(0, firstLineBreak).strip();
+            String sectionBody = section.substring(firstLineBreak + 1).strip();
+            if (sectionTitle.isBlank() || sectionBody.isBlank()) {
+                throw new BusinessException("第" + i + "个章节的标题和正文不能为空");
+            }
+
+            // 每次只处理一个章节的正文，不跨章节拼接。
+            // 短正文返回一个片段，过长的正文进一步拆分。
+            List<Document> sectionChunks = knowledgeChunkService.splitText(sectionBody, FILE_CHUNK_SIZE);
+
+            for (int j = 0; j < sectionChunks.size(); j++) {
+                // 每个片段都补上章节标题，避免后续片段丢失所属章节的信息。
+                String chunkText = sectionTitle + "\n" + sectionChunks.get(j).getText();
+
+                // 同一版本内，使用章节序号和片段序号共同区分文档。
+                String documentKey = source + ":" + FILE_CATEGORY + ":" + newVersion + ":" + i + ":" + j;
+                String documentId = UUID.nameUUIDFromBytes(documentKey.getBytes(StandardCharsets.UTF_8)).toString();
+                Map<String, Object> metadata = Map.of(
+                        "title", documentTitle + " - " + sectionTitle,
+                        "category", FILE_CATEGORY,
+                        "source", source,
+                        "section", sectionTitle,
+                        "version", newVersion,
+                        "sectionIndex", i,
+                        "chunkIndex", j + 1,
+                        "chunkCount", sectionChunks.size()
+                );
+                chunks.add(new Document(documentId, chunkText, metadata));
+            }
         }
         // 新版本片段完整写入成功后，才允许发布。
         vectorStore.add(chunks);

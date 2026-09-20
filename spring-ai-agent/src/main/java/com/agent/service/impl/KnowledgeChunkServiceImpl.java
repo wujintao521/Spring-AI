@@ -6,6 +6,7 @@ import org.springframework.ai.document.Document;
 import org.springframework.ai.transformer.splitter.TokenTextSplitter;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -13,6 +14,11 @@ import java.util.List;
  */
 @Service
 public class KnowledgeChunkServiceImpl implements KnowledgeChunkService {
+
+    /**
+     * 重叠文本的字符数上限，避免复制过长内容；这里不是 Token 数。
+     */
+    private static final int MAX_OVERLAP_CHARS = 100;
 
     /**
      * 按目标 Token 数量分块，并尽量在标点处结束片段。
@@ -38,7 +44,68 @@ public class KnowledgeChunkServiceImpl implements KnowledgeChunkService {
                 .withPunctuationMarks(List.of('。', '！', '？', '；', '.', '!', '?', ';', '\n')) // 将中文标点也纳入切分边界的选择
                 .build();
 
-        // Document 只是文本载体；这里没有调用 Embedding 或向量库。
-        return splitter.apply(List.of(new Document(normalizedText)));
+        // 先完成基础分块，再为相邻片段补充少量上下文。
+        List<Document> chunks = splitter.apply(List.of(new Document(normalizedText)));
+        return addSentenceOverlap(chunks);
+    }
+
+    /**
+     * 为每个后续片段补充前一个原始片段末尾的短句。
+     * 只读取原始分块结果，避免已经补充的内容不断向后累积。
+     */
+    private List<Document> addSentenceOverlap(List<Document> chunks) {
+        if (chunks.size() <= 1) {
+            return chunks;
+        }
+
+        List<Document> results = new ArrayList<>(chunks.size());
+
+        for (int i = 0; i < chunks.size(); i++) {
+            Document current = chunks.get(i);
+            String content = current.getText();
+
+            if (i > 0) {
+                String previousText = chunks.get(i - 1).getText();
+                String overlapText = extractOverlapText(previousText);
+
+                if (!overlapText.isBlank()) {
+                    content = overlapText + "\n" + content;
+                }
+            }
+
+            // 保留原片段的编号和元数据，只调整正文。
+            results.add(new Document(current.getId(), content, current.getMetadata()));
+        }
+
+        return results;
+    }
+
+    /**
+     * 按中文句末标点和换行寻找末尾短句。
+     * 这是针对当前中文规则的简单策略，不是通用的语义识别算法。
+     */
+    private String extractOverlapText(String text) {
+        if (text == null || text.isBlank()) {
+            return "";
+        }
+
+        // 在句末标点之后或换行处切开，保留句末标点。
+        String[] sentences = text.strip().split("(?<=[。！？；])|\\n");
+        if (sentences.length == 0) {
+            return "";
+        }
+
+        String lastSentence = sentences[sentences.length - 1].strip();
+        if (lastSentence.isEmpty() || lastSentence.length() > MAX_OVERLAP_CHARS) {
+            return "";
+        }
+
+        // 如果末尾没有中文句末标点，本次不复制，避免直接复制明显截断的尾部。
+        char lastChar = lastSentence.charAt(lastSentence.length() - 1);
+        if ("。！？；".indexOf(lastChar) < 0) {
+            return "";
+        }
+
+        return lastSentence;
     }
 }
