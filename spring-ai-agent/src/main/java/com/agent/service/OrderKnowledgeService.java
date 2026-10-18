@@ -55,4 +55,8 @@ public interface OrderKnowledgeService {
      */
     void deleteFileKnowledge();
 
+    /**
+     * 使用 RAG Advisor 检索知识并生成回答。
+     */
+    OrderKnowledgeAnswerResponse answerWithAdvisor(String question);
 }

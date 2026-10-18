@@ -113,4 +113,15 @@ public class OrderKnowledgeController {
         List<String> contents = chunks.stream().map(Document::getText).toList();
         return ApiResponse.success(contents);
     }
+
+    /**
+     * 用于对照学习 Advisor 方式的知识问答。
+     * 返回回答文字，暂不返回参考片段。
+     */
+    @GetMapping("/ask-advisor")
+    public ApiResponse<OrderKnowledgeAnswerResponse> answerWithAdvisor(@RequestParam("question") String question) {
+        OrderKnowledgeAnswerResponse response = orderKnowledgeService.answerWithAdvisor(question);
+        return ApiResponse.success(response);
+    }
+
 }
