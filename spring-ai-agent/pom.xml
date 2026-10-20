@@ -22,6 +22,17 @@
             <artifactId>spring-ai-common-service</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>
+        <!-- 提供健康检查、指标查询及Micrometer自动配置。 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- 提供 Bearer Token 认证及 Spring Security 安全上下文。 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security-oauth2-resource-server</artifactId>
+        </dependency>
     </dependencies>
 
     <build>

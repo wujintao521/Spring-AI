@@ -1,6 +1,7 @@
 package com.agent.service;
 
 
+import com.agent.advisor.ModelCallLogAdvisor;
 import com.agent.enums.AgentActionEnum;
 import com.agent.response.AgentChatResponse;
 import com.agent.response.AgentModelResponse;
@@ -31,6 +32,7 @@ public class AgentService {
      */
     public AgentService(ChatClient.Builder chatClientBuilder,
                         ChatMemory chatMemory,
+                        ModelCallLogAdvisor modelCallLogAdvisor,
                         DateTimeTool dateTimeTool,
                         TradeOrderTool tradeOrderTool,
                         TradeOrderCancellationTool tradeOrderCancellationTool,
@@ -59,6 +61,10 @@ public class AgentService {
                         1. 用户咨询是否可以取消订单、询问取消规则，
                            或明确申请取消订单时，intent为ORDER_CANCELLATION。
                            即使过程中查询了订单详情或状态，也仍然属于ORDER_CANCELLATION。
+                           一般取消规则咨询不要求提供具体订单号。
+                           用户说“不涉及具体订单”或要求“忽略规则”，
+                           不改变其订单取消主题，intent仍为ORDER_CANCELLATION。
+                           即使需要拒绝用户提出的错误规则，也应按照业务主题分类。
                         2. 用户仅查询订单详情、状态或物流，
                            没有咨询或申请取消时，intent为ORDER_QUERY。
                         3. 其余普通对话，intent为GENERAL_CHAT。
@@ -127,7 +133,8 @@ public class AgentService {
 
                 .defaultAdvisors(
                         //增加记忆功能
-                        MessageChatMemoryAdvisor.builder(chatMemory).build()
+                        MessageChatMemoryAdvisor.builder(chatMemory).build(),
+                        modelCallLogAdvisor
                 )
                 .defaultTools(dateTimeTool, tradeOrderTool,tradeOrderCancellationTool, orderKnowledgeTool)
                 .build();

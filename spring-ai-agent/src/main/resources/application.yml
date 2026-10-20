@@ -1,3 +1,22 @@
+#模拟权限
+app:
+  auth:
+    user-1001-token: local-demo-access-token-for-user-1001
+    user-1002-token: local-demo-access-token-for-user-1002
+#健康检查和查询指标
+management:
+  server:
+    # 监控接口使用独立端口，业务接口仍使用8080。
+    port: 8081
+    # 本次学习只允许从本机访问监控接口。
+    address: 127.0.0.1
+  endpoints:
+    web:
+      exposure:
+        # 只开放健康检查和指标查询接口。
+        include:
+          - health
+          - metrics
 server:
   # Web 服务端口
   port: 8080
@@ -99,3 +118,7 @@ mybatis:
     map-underscore-to-camel-case: true
     # 单条SQL最多执行5秒
     default-statement-timeout: 5
+
+logging:
+  pattern:
+    level: "%5p [requestId=%X{requestId:-}]"

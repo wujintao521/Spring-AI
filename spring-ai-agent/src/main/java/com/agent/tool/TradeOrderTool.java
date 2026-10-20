@@ -42,7 +42,7 @@ public class TradeOrderTool {
             name = "queryTradeOrderByOrderNo",
             description = "根据订单编号查询订单详情、订单状态和物流单号。当用户提供了明确的订单编号并询问订单信息时，必须调用此工具。"
     )
-    public String queryTradeOrderByOrderNo(@ToolParam(description = "业务订单编号，例如：ORD202608170003") String orderNo) {
+    public String queryTradeOrderByOrderNo(@ToolParam(description = "@ToolParam(description = \"需要查询的真实业务订单编号。只能使用用户明确提供或已确认的会话上下文中的订单编号。不得猜测、编造或使用示例值；无法确定时应先询问用户，不调用本工具。\")") String orderNo) {
         log.info("Agent调用订单编号查询工具，orderNo={}", orderNo);
         return tradeOrderService.getByOrderNo(orderNo)
                 .map(this::formatTradeOrder)
@@ -59,7 +59,7 @@ public class TradeOrderTool {
             name = "queryTradeOrdersByCustomerName",
             description = "根据客户姓名查询该客户的订单列表。当用户没有提供订单编号，但是提供了客户姓名并要求查询订单时，调用此工具。"
     )
-    public String queryTradeOrdersByCustomerName(@ToolParam(description = "需要查询订单的客户姓名，例如：张三") String customerName) {
+    public String queryTradeOrdersByCustomerName(@ToolParam(description = "需要查询的真实客户姓名。只能使用用户明确提供或已确认的会话上下文中的姓名。不得猜测、编造或使用示例值；无法确定时应先询问用户，不调用本工具。") String customerName) {
         log.info("Agent调用客户订单查询工具，customerName={}", customerName);
         List<TradeOrder> tradeOrders = tradeOrderService.listByCustomerName(customerName);
         if (tradeOrders.isEmpty()) {

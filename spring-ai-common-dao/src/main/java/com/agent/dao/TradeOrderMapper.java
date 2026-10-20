@@ -46,4 +46,19 @@ public interface TradeOrderMapper {
      * @return 受影响的记录数；1表示取消成功，0表示订单不存在或状态不允许取消
      */
     int cancelCancellableOrder(@Param("orderNo") String orderNo, @Param("updatedAt") LocalDateTime updatedAt);
+
+    /**
+     * 查询指定用户拥有的订单。
+     *
+     * userId 必须来自后端确认的用户身份，不能由大模型决定。
+     * 订单不存在或不属于该用户时，均返回 null。
+     */
+    TradeOrder selectByOrderNoAndUserId(@Param("orderNo") String orderNo, @Param("userId") Long userId);
+
+    /**
+     * 在指定用户有权访问的订单范围内，按客户姓名查询。
+     *
+     * 姓名只是筛选条件，不能代替用户身份。
+     */
+    List<TradeOrder> selectListByCustomerNameAndUserId(@Param("customerName") String customerName, @Param("userId") Long userId);
 }

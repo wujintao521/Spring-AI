@@ -2,6 +2,7 @@ package com.agent.service.impl;
 
 import com.agent.dao.TradeOrderMapper;
 import com.agent.entity.TradeOrder;
+import com.agent.service.CurrentUserService;
 import com.agent.service.TradeOrderService;
 import org.springframework.stereotype.Service;
 
@@ -9,50 +10,42 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * 交易订单业务服务实现类。
- *
- * 负责订单查询参数校验，并调用Mapper访问数据库。
+ * 普通订单接口和 Agent 工具共用的订单查询服务。
+ * 所有查询均限定当前认证用户的订单归属。
  */
 @Service
 public class TradeOrderServiceImpl implements TradeOrderService {
 
     private final TradeOrderMapper tradeOrderMapper;
+    private final CurrentUserService currentUserService;
 
-    /**
-     * 通过构造方法注入交易订单Mapper。
-     *
-     * @param tradeOrderMapper 交易订单数据访问接口
-     */
-    public TradeOrderServiceImpl(TradeOrderMapper tradeOrderMapper) {
+    public TradeOrderServiceImpl(TradeOrderMapper tradeOrderMapper, CurrentUserService currentUserService) {
         this.tradeOrderMapper = tradeOrderMapper;
+        this.currentUserService = currentUserService;
     }
 
-    /**
-     * 根据订单编号查询订单。
-     *
-     * @param orderNo 业务订单编号
-     * @return 包含订单的Optional；订单不存在时返回空Optional
-     */
     @Override
     public Optional<TradeOrder> getByOrderNo(String orderNo) {
+        Long userId = currentUserService.requireUserId();
+
         if (orderNo == null || orderNo.isBlank()) {
             throw new IllegalArgumentException("订单编号不能为空");
         }
-        TradeOrder tradeOrder = tradeOrderMapper.selectByOrderNo(orderNo.strip());
+
+        // 模型仍然只提供订单号，用户身份由后端认证上下文提供。
+        TradeOrder tradeOrder = tradeOrderMapper.selectByOrderNoAndUserId(orderNo.strip(), userId);
         return Optional.ofNullable(tradeOrder);
     }
 
-    /**
-     * 根据客户姓名查询订单列表。
-     *
-     * @param customerName 客户姓名
-     * @return 客户订单列表
-     */
     @Override
     public List<TradeOrder> listByCustomerName(String customerName) {
+        Long userId = currentUserService.requireUserId();
+
         if (customerName == null || customerName.isBlank()) {
             throw new IllegalArgumentException("客户姓名不能为空");
         }
-        return tradeOrderMapper.selectListByCustomerName(customerName.strip());
+
+        // 即使姓名相同，也只返回当前用户有权访问的订单。
+        return tradeOrderMapper.selectListByCustomerNameAndUserId(customerName.strip(), userId);
     }
 }

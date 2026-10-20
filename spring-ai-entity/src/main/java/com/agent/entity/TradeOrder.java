@@ -69,4 +69,9 @@ public class TradeOrder {
      */
     private LocalDateTime updatedAt;
 
+    /**
+     * 订单所属用户ID。
+     * 用于判断当前用户是否有权访问该订单，不能由大模型自行决定。
+     */
+    private Long userId;
 }
