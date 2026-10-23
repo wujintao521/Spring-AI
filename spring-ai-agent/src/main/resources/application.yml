@@ -3,6 +3,7 @@ app:
   auth:
     user-1001-token: local-demo-access-token-for-user-1001
     user-1002-token: local-demo-access-token-for-user-1002
+    admin-9001-token: local-demo-access-token-for-admin-9001
 #健康检查和查询指标
 management:
   server:

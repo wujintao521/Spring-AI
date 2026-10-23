@@ -24,6 +24,8 @@ public class AgentService {
 
     private final AgentPendingActionService agentPendingActionService;
 
+    private final CurrentUserService currentUserService;
+
     /**
      * 通过构造方法注入 ChatClient.Builder。
      *
@@ -37,8 +39,10 @@ public class AgentService {
                         TradeOrderTool tradeOrderTool,
                         TradeOrderCancellationTool tradeOrderCancellationTool,
                         OrderKnowledgeTool orderKnowledgeTool,
-                        AgentPendingActionService agentPendingActionService) {
+                        AgentPendingActionService agentPendingActionService,
+                        CurrentUserService currentUserService) {
         this.agentPendingActionService = agentPendingActionService;
+        this.currentUserService = currentUserService;
         this.chatClient = chatClientBuilder
                 .defaultSystem("""
                         你是一个严谨、友好的中文 AI 助手。
@@ -148,22 +152,32 @@ public class AgentService {
      * @return 大模型生成的结构化聊天结果
      */
     public AgentChatResponse chat(String conversationId, String message) {
+        // 身份来自后端认证结果，不能让前端或模型指定。
+        Long userId = currentUserService.requireUserId();
+
         if (conversationId == null || conversationId.isBlank()) {
             throw new IllegalArgumentException("会话ID不能为空");
         }
         if (message == null || message.isBlank()) {
             throw new IllegalArgumentException("用户问题不能为空");
         }
+
+        // 为不同用户建立独立的记忆空间。
+        // 即使前端传入相同的conversationId，也不会读取同一组历史。
+        String memoryConversationId = userId + ":" + conversationId;
         AgentModelResponse modelResponse = chatClient
                 .prompt()
                 .user(message)
-                .advisors(advisorSpec -> advisorSpec.param(ChatMemory.CONVERSATION_ID, conversationId))
+                .advisors(advisorSpec -> advisorSpec.param(ChatMemory.CONVERSATION_ID, memoryConversationId))
                 .call()
                 .entity(AgentModelResponse.class);
 
         String actionId = null;
         if (modelResponse.pendingAction() != AgentActionEnum.NONE) {
             String orderNo = modelResponse.relatedOrderNos().get(0);
+
+            // 此处暂时保留原有动作创建流程。
+            // 动作记录与用户的归属绑定，是下一步要补充的内容。
             actionId = agentPendingActionService
                     .createPendingAction(conversationId, modelResponse.pendingAction(), orderNo)
                     .getActionId();

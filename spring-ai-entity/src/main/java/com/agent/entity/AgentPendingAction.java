@@ -80,4 +80,10 @@ public class AgentPendingAction {
      * 待确认动作最后更新时间。
      */
     private LocalDateTime updatedAt;
+
+    /**
+     * 动作所属用户ID。
+     * 创建动作时从后端认证结果获取，不由前端或大模型指定。
+     */
+    private Long userId;
 }

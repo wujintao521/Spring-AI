@@ -15,6 +15,7 @@
         <result property="executedAt" column="executed_at"/>
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
+        <result property="userId" column="user_id"/>
     </resultMap>
 
     <!-- 公共查询字段 -->
@@ -29,25 +30,28 @@
         confirmed_at,
         executed_at,
         created_at,
-        updated_at
+        updated_at,
+        user_id
     </sql>
 
-    <!-- 新增待确认动作 -->
+    <!-- 创建动作时，同时保存当前认证用户的归属。 -->
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO agent_pending_action (
-            action_id,
-            conversation_id,
-            action_type,
-            order_no,
-            status,
-            expires_at
+        action_id,
+        conversation_id,
+        user_id,
+        action_type,
+        order_no,
+        status,
+        expires_at
         ) VALUES (
-            #{actionId},
-            #{conversationId},
-            #{actionType},
-            #{orderNo},
-            #{status},
-            #{expiresAt}
+        #{actionId},
+        #{conversationId},
+        #{userId},
+        #{actionType},
+        #{orderNo},
+        #{status},
+        #{expiresAt}
         )
     </insert>
 
@@ -60,45 +64,59 @@
         LIMIT 1
     </select>
 
-    <!-- 根据动作编号查询并锁定待执行动作，必须在事务中调用 -->
+    <!-- 用户归属、动作状态、有效期必须同时满足，才能确认。 -->
+    <update id="confirmPendingAction">
+        UPDATE agent_pending_action
+        SET status = 'CONFIRMED',
+        confirmed_at = #{confirmedAt}
+        WHERE action_id = #{actionId}
+        AND user_id = #{userId}
+        AND status = 'PENDING'
+        AND expires_at > #{confirmedAt}
+    </update>
+
+    <!-- 用户归属、动作状态、有效期必须同时满足，才能放弃。 -->
+    <update id="rejectPendingAction">
+        UPDATE agent_pending_action
+        SET status = 'CANCELLED',
+        updated_at = #{rejectedAt}
+        WHERE action_id = #{actionId}
+        AND user_id = #{userId}
+        AND status = 'PENDING'
+        AND expires_at > #{rejectedAt}
+    </update>
+
+    <!-- 只查询当前用户拥有的动作。 -->
+    <select id="selectByActionIdAndUserId" resultMap="agentPendingActionResultMap">
+        SELECT
+        <include refid="agentPendingActionColumns"/>
+        FROM agent_pending_action
+        WHERE action_id = #{actionId}
+        AND user_id = #{userId}
+        LIMIT 1
+    </select>
+
+    <!-- 只查询并锁定当前用户的动作。 -->
     <select id="selectByActionIdForUpdate" resultMap="agentPendingActionResultMap">
         SELECT
         <include refid="agentPendingActionColumns"/>
         FROM agent_pending_action
         WHERE action_id = #{actionId}
+        AND user_id = #{userId}
         LIMIT 1
         FOR UPDATE
     </select>
 
-    <!-- 将有效的待确认动作原子更新为已确认 -->
-    <update id="confirmPendingAction">
-        UPDATE agent_pending_action
-        SET status = 'CONFIRMED',
-            confirmed_at = #{confirmedAt}
-        WHERE action_id = #{actionId}
-          AND status = 'PENDING'
-          AND expires_at > #{confirmedAt}
-    </update>
-
-    <!-- 将有效的待确认动作原子更新为已放弃 -->
-    <update id="rejectPendingAction">
-        UPDATE agent_pending_action
-        SET status = 'CANCELLED',
-            updated_at = #{rejectedAt}
-        WHERE action_id = #{actionId}
-          AND status = 'PENDING'
-          AND expires_at > #{rejectedAt}
-    </update>
-
-    <!-- 将已确认的取消订单动作原子更新为已执行 -->
+    <!-- 动作归属、类型和状态必须同时满足。 -->
     <update id="markCancelOrderActionExecuted">
         UPDATE agent_pending_action
         SET status = 'EXECUTED',
-            executed_at = #{executedAt},
-            updated_at = #{executedAt}
+        executed_at = #{executedAt},
+        updated_at = #{executedAt}
         WHERE action_id = #{actionId}
-          AND action_type = 'CANCEL_ORDER'
-          AND status = 'CONFIRMED'
+        AND user_id = #{userId}
+        AND action_type = 'CANCEL_ORDER'
+        AND status = 'CONFIRMED'
     </update>
 
 </mapper>

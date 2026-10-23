@@ -28,15 +28,6 @@ public interface AgentPendingActionMapper {
      */
     AgentPendingAction selectByActionId(@Param("actionId") String actionId);
 
-    /**
-     * 根据动作编号查询并锁定待执行动作。
-     *
-     * 该方法必须在事务中调用，用于防止同一个动作被并发执行。
-     *
-     * @param actionId 待执行动作唯一编号
-     * @return 待执行动作；不存在时返回null
-     */
-    AgentPendingAction selectByActionIdForUpdate(@Param("actionId") String actionId);
 
     /**
      * 将有效的待确认动作原子更新为已确认。
@@ -47,7 +38,8 @@ public interface AgentPendingActionMapper {
      * @param confirmedAt 用户确认时间
      * @return 受影响的记录数；1表示确认成功，0表示动作无效
      */
-    int confirmPendingAction(@Param("actionId") String actionId, @Param("confirmedAt") LocalDateTime confirmedAt);
+    int confirmPendingAction(@Param("actionId") String actionId, @Param("userId") Long userId,
+                             @Param("confirmedAt") LocalDateTime confirmedAt);
 
     /**
      * 将有效的待确认动作原子更新为已放弃。
@@ -58,14 +50,24 @@ public interface AgentPendingActionMapper {
      * @param rejectedAt 用户放弃时间
      * @return 受影响的记录数；1表示放弃成功，0表示动作无效
      */
-    int rejectPendingAction(@Param("actionId") String actionId, @Param("rejectedAt") LocalDateTime rejectedAt);
+    int rejectPendingAction(@Param("actionId") String actionId, @Param("userId") Long userId,
+                            @Param("rejectedAt") LocalDateTime rejectedAt);
+
 
     /**
-     * 将已确认的取消订单动作原子更新为已执行。
-     *
-     * @param actionId 待执行动作唯一编号
-     * @param executedAt 动作执行完成时间
-     * @return 受影响的记录数；1表示更新成功，0表示动作状态不允许执行
+     * 查询属于指定用户的动作。
+     * 动作不存在或不属于该用户时，返回 null。
      */
-    int markCancelOrderActionExecuted(@Param("actionId") String actionId, @Param("executedAt") LocalDateTime executedAt);
+    AgentPendingAction selectByActionIdAndUserId(@Param("actionId") String actionId, @Param("userId") Long userId);
+
+    /**
+     * 查询并锁定当前用户拥有的动作，必须在事务中调用。
+     */
+    AgentPendingAction selectByActionIdForUpdate(@Param("actionId") String actionId, @Param("userId") Long userId);
+
+    /**
+     * 将当前用户已确认的取消订单动作更新为已执行。
+     */
+    int markCancelOrderActionExecuted(@Param("actionId") String actionId, @Param("userId") Long userId,
+                                      @Param("executedAt") LocalDateTime executedAt);
 }

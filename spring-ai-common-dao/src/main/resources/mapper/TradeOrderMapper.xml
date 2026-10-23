@@ -51,13 +51,14 @@
         ORDER BY created_at DESC, id DESC
     </select>
 
-    <!-- 将仍允许取消的订单原子更新为已取消 -->
+    <!-- 在同一条原子更新中检查订单归属和当前状态。 -->
     <update id="cancelCancellableOrder">
         UPDATE trade_order
         SET status = 'CANCELLED',
-            updated_at = #{updatedAt}
+        updated_at = #{updatedAt}
         WHERE order_no = #{orderNo}
-          AND status IN ('PENDING_PAYMENT', 'PAID')
+        AND user_id = #{userId}
+        AND status IN ('PENDING_PAYMENT', 'PAID')
     </update>
 
     <!-- 根据订单号查询，并限定订单归属。 -->
