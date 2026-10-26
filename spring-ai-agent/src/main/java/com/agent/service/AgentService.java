@@ -1,6 +1,7 @@
 package com.agent.service;
 
 
+import com.agent.advisor.ModelCallLimitAdvisor;
 import com.agent.advisor.ModelCallLogAdvisor;
 import com.agent.enums.AgentActionEnum;
 import com.agent.response.AgentChatResponse;
@@ -13,6 +14,8 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.stereotype.Service;
+
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 public class AgentService {
@@ -35,6 +38,7 @@ public class AgentService {
     public AgentService(ChatClient.Builder chatClientBuilder,
                         ChatMemory chatMemory,
                         ModelCallLogAdvisor modelCallLogAdvisor,
+                        ModelCallLimitAdvisor modelCallLimitAdvisor,
                         DateTimeTool dateTimeTool,
                         TradeOrderTool tradeOrderTool,
                         TradeOrderCancellationTool tradeOrderCancellationTool,
@@ -138,6 +142,7 @@ public class AgentService {
                 .defaultAdvisors(
                         //增加记忆功能
                         MessageChatMemoryAdvisor.builder(chatMemory).build(),
+                        modelCallLimitAdvisor,
                         modelCallLogAdvisor
                 )
                 .defaultTools(dateTimeTool, tradeOrderTool,tradeOrderCancellationTool, orderKnowledgeTool)
@@ -168,7 +173,10 @@ public class AgentService {
         AgentModelResponse modelResponse = chatClient
                 .prompt()
                 .user(message)
-                .advisors(advisorSpec -> advisorSpec.param(ChatMemory.CONVERSATION_ID, memoryConversationId))
+                .advisors(advisorSpec ->
+                        advisorSpec.param(ChatMemory.CONVERSATION_ID, memoryConversationId)
+                                    //调用一次chat方法内部调用了几轮模型 目前设置了6轮上限
+                                   .param(ModelCallLimitAdvisor.COUNTER_KEY, new AtomicInteger(0)))
                 .call()
                 .entity(AgentModelResponse.class);
 

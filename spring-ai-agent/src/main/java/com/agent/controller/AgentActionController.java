@@ -80,7 +80,6 @@ public class AgentActionController {
     public ApiResponse<AgentActionExecutionResponse> execute(
             @Valid @RequestBody AgentActionExecutionRequest request) {
         log.info("执行已确认的Agent业务动作，actionId={}", request.actionId());
-        log.info("执行已确认的Agent业务动作，请求报文={}", JSONObject.toJSONString(request));
         AgentActionExecutionResponse response = agentActionExecutionService.executeConfirmedAction(request.actionId());
         return ApiResponse.success(response);
     }

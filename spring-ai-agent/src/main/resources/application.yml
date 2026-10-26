@@ -1,32 +1,28 @@
-#模拟权限
-app:
-  auth:
-    user-1001-token: local-demo-access-token-for-user-1001
-    user-1002-token: local-demo-access-token-for-user-1002
-    admin-9001-token: local-demo-access-token-for-admin-9001
-#健康检查和查询指标
+server:
+  # 业务接口端口。
+  port: 8080
+
 management:
   server:
-    # 监控接口使用独立端口，业务接口仍使用8080。
+    # 监控接口使用独立端口，仅允许本机访问。
     port: 8081
-    # 本次学习只允许从本机访问监控接口。
     address: 127.0.0.1
   endpoints:
     web:
       exposure:
-        # 只开放健康检查和指标查询接口。
         include:
           - health
           - metrics
-server:
-  # Web 服务端口
-  port: 8080
 
 spring:
+  profiles:
+    active: prod
+
   application:
-    # 当前应用名称
     name: spring-ai-agent
+
   datasource:
+    # 实际连接信息由运行环境提供。
     url: ${SPRING_AI_DB_URL}
     username: ${SPRING_AI_DB_USERNAME}
     password: ${SPRING_AI_DB_PASSWORD}
@@ -36,88 +32,71 @@ spring:
       pool-name: SpringAiHikariPool
       minimum-idle: 1
       maximum-pool-size: 5
-      #最多等待30秒从连接池获取连接
+      # 从连接池获取连接，最多等待30秒。
       connection-timeout: 30000
-      #最多等待5秒验证数据库连接是否有效
+      # 验证连接是否有效，最多等待5秒。
       validation-timeout: 5000
+
   ai:
     tools:
-      # Tool执行失败时抛出异常，由后端统一异常处理
+      # 工具执行失败时抛出异常，由后端统一处理。
       throw-exception-on-error: true
+
     model:
-      # 开启 OpenAI 协议的聊天模型
       chat: openai
-      # 向量模型
       embedding: openai
-      # 暂时不创建图片生成模型
       image: none
-      # 暂时不创建内容审核模型
       moderation: none
-      # 暂时不创建语音模型
       audio:
         speech: none
         transcription: none
+
     openai:
-      # 从 Windows 环境变量读取百炼 API Key
+      # 从环境变量读取百炼API Key。
       api-key: ${DASHSCOPE_API_KEY}
       base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
-      # 单次大模型HTTP请求最多等待30秒
+
+      # 模型HTTP请求的超时限制。
       timeout: 30s
-      # 大模型请求发生临时故障时最多重试2次
-      max-retries: 2
+      # 符合重试条件的失败，最多额外重试一次。
+      max-retries: 1
+
       chat:
-        # 实际调用的千问模型
         model: qwen-flash
-        # 控制回答随机性，越低越稳定
         temperature: 0.7
-        # 限制单次回复长度
         max-tokens: 512
-        # 关闭思考模式
         extra-body:
           enable_thinking: false
+
       embedding:
-        # 用于把知识文本和用户问题转换成向量
         model: text-embedding-v4
-        # 生成1024维向量
         dimensions: 1024
-        # 单次向量模型请求超时时间
         timeout: 30s
-        # 向量模型临时调用失败时的重试次数
         max-retries: 2
+
     vectorstore:
       qdrant:
-        # Qdrant服务器地址
         host: ${QDRANT_HOST}
-        # Qdrant的gRPC端口
+        # Qdrant的gRPC端口。
         port: 6334
-        # Qdrant访问密钥
         api-key: ${QDRANT_API_KEY}
-        # 保存订单业务知识的集合
         collection-name: trade_order_knowledge
-        # 保存知识原文的字段
         content-field-name: doc_content
-        # 当前学习环境暂时未配置TLS
+        # 保持当前项目的连接方式。
         use-tls: false
-        # 集合不存在时自动创建
-        initialize-schema: true
-    # 通过MySQL存储会话记忆
+
     chat:
       memory:
         repository:
           jdbc:
-            # 自动创建会话记忆表
-            initialize-schema: always
-            # 使用Spring AI内置的MySQL建表脚本
             platform: mysql
 
 mybatis:
-  # classpath* 可以扫描依赖模块 common-dao 中的 XML
+  # 扫描当前模块及依赖模块中的Mapper XML。
   mapper-locations: classpath*:mapper/**/*.xml
-
   configuration:
-    # 自动把数据库的 order_no 映射成 Java 的 orderNo
     map-underscore-to-camel-case: true
-    # 单条SQL最多执行5秒
+    # 单条SQL的超时时间，单位为秒。
     default-statement-timeout: 5
 
 logging:

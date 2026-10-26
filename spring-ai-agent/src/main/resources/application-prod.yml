@@ -1,0 +1,27 @@
+app:
+  auth:
+    # 部署凭证通过环境变量提供，不使用本地演示凭证。
+    # 三个凭证必须不同，且每个至少32个字符。
+    user-1001-token: ${APP_AUTH_USER_1001_TOKEN}
+    user-1002-token: ${APP_AUTH_USER_1002_TOKEN}
+    admin-9001-token: ${APP_AUTH_ADMIN_9001_TOKEN}
+
+spring:
+  ai:
+    vectorstore:
+      qdrant:
+        # 使用提前准备好的集合，不在启动时自动创建。
+        initialize-schema: false
+
+    chat:
+      memory:
+        repository:
+          jdbc:
+            # 使用提前准备好的表，不在启动时自动建表。
+            initialize-schema: never
+
+logging:
+  file:
+    # 默认写入应用工作目录下的logs文件夹。
+    # 可通过APP_LOG_FILE环境变量指定其他路径。
+    name: ${APP_LOG_FILE:logs/spring-ai-agent.log}

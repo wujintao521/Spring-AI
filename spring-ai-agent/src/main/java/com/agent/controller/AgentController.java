@@ -4,7 +4,6 @@ import com.agent.request.AgentChatRequest;
 import com.agent.response.AgentChatResponse;
 import com.agent.response.ApiResponse;
 import com.agent.service.AgentService;
-import com.alibaba.fastjson2.JSONObject;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -28,7 +27,9 @@ public class AgentController {
 
     @PostMapping("/chat")
     public ApiResponse<AgentChatResponse> chat(@Valid @RequestBody AgentChatRequest request) {
-        log.info("会话请求报文{}", JSONObject.toJSONString(request));
+        // 不记录消息正文，避免用户输入的手机号、地址或凭证进入日志。
+        // 日志中的 requestId 仍然可以关联本次请求的模型调用和工具调用。
+        log.info("收到Agent会话请求 messageLength={}", request.message().length());
         AgentChatResponse response = agentService.chat(request.conversationId(), request.message());
         return ApiResponse.success(response);
     }

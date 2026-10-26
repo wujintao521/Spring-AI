@@ -31,7 +31,7 @@ public class TradeOrderController {
      */
     @GetMapping("/{orderNo}")
     public ApiResponse<TradeOrder> getByOrderNo(@PathVariable String orderNo) {
-        log.info("根据订单编号查询订单，请求报文={}", orderNo);
+        log.info("收到按订单编号查询请求");
         return tradeOrderService.getByOrderNo(orderNo)
                 .map(ApiResponse::success)
                 .orElseGet(() -> ApiResponse.failure(40401, "订单不存在"));
@@ -45,7 +45,7 @@ public class TradeOrderController {
      */
     @GetMapping
     public ApiResponse<List<TradeOrder>> listByCustomerName(@RequestParam String customerName) {
-        log.info("根据客户姓名查询订单列表，请求报文={}", customerName);
+        log.info("收到按客户姓名查询订单列表请求");
         List<TradeOrder> tradeOrders = tradeOrderService.listByCustomerName(customerName);
         return ApiResponse.success(tradeOrders);
     }

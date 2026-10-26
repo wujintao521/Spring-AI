@@ -1,0 +1,20 @@
+app:
+  auth:
+    # 本地开发使用的演示凭证。
+    user-1001-token: local-demo-access-token-for-user-1001
+    user-1002-token: local-demo-access-token-for-user-1002
+    admin-9001-token: local-demo-access-token-for-admin-9001
+
+spring:
+  ai:
+    vectorstore:
+      qdrant:
+        # 集合不存在时，允许自动创建。
+        initialize-schema: true
+
+    chat:
+      memory:
+        repository:
+          jdbc:
+            # 启动时执行内置的会话记忆建表脚本。
+            initialize-schema: always

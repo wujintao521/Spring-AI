@@ -31,7 +31,7 @@ public class ModelCallLogAdvisor implements CallAdvisor {
          * 放在默认工具调用Advisor之后，进入它内部的每轮模型调用。
          * 如果放在工具循环外面，就只能观察整个循环一次。
          */
-        return ToolCallingAdvisor.DEFAULT_ORDER + 1;
+        return ToolCallingAdvisor.DEFAULT_ORDER + 2;
     }
 
     @Override
