@@ -2,6 +2,7 @@ server:
   # 业务接口端口。
   port: 8080
 
+# 开启健康检查以及获取指标
 management:
   server:
     # 监控接口使用独立端口，仅允许本机访问。
@@ -90,7 +91,24 @@ spring:
         repository:
           jdbc:
             platform: mysql
+    mcp:
+      client:
+        name: order-agent-mcp-client
+        type: SYNC
+        request-timeout: 10s
 
+        # 启动时建立客户端并完成协议初始化。
+        initialized: true
+
+        # 将远端工具注册给模型
+        toolcallback:
+          enabled: true
+
+        streamable-http:
+          connections:
+            mdc-server-1:
+              url: http://127.0.0.1:8090
+              endpoint: /mcp
 mybatis:
   # 扫描当前模块及依赖模块中的Mapper XML。
   mapper-locations: classpath*:mapper/**/*.xml
@@ -98,7 +116,11 @@ mybatis:
     map-underscore-to-camel-case: true
     # 单条SQL的超时时间，单位为秒。
     default-statement-timeout: 5
-
+#负责显示MDC设置的日志requestId
 logging:
   pattern:
     level: "%5p [requestId=%X{requestId:-}]"
+app:
+  mcp:
+    # 仅用于当前本机练习，两端必须一致。
+    service-token: mcp-service-demo-token-local-only-20261029

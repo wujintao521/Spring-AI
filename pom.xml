@@ -15,6 +15,7 @@
         <module>spring-ai-common-service</module>
         <module>spring-ai-utils</module>
         <module>spring-ai-common-dao</module>
+        <module>spring-ai-mcp-server</module>
     </modules>
 
     <properties>

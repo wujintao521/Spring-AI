@@ -1,0 +1,25 @@
+server:
+  # 与订单助手的8080端口分开。
+  port: 8090
+  # 本次练习只供Mac本机访问。
+  address: 127.0.0.1
+
+spring:
+  application:
+    name: spring-ai-mcp-server
+
+  ai:
+    mcp:
+      server:
+        name: time-mcp-server
+        version: 1.0.0
+        # 使用同步Java方法处理工具调用。
+        type: SYNC
+        # 使用无状态的HTTP服务方式。
+        protocol: STATELESS
+        stateless:
+          mcp-endpoint: /mcp
+app:
+  mcp:
+    # 仅用于当前本机练习，两端必须一致。
+    service-token: mcp-service-demo-token-local-only-20261029
