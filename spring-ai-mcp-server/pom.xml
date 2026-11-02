@@ -48,6 +48,51 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security-oauth2-resource-server</artifactId>
         </dependency>
+
+        <!-- MyBatis 整合依赖，已经包含 Spring JDBC。 -->
+        <dependency>
+            <groupId>org.mybatis.spring.boot</groupId>
+            <artifactId>mybatis-spring-boot-starter</artifactId>
+            <version>4.1.0</version>
+        </dependency>
+
+        <!-- 复用现有 Mapper 接口和 XML。 -->
+        <dependency>
+            <groupId>org.example</groupId>
+            <artifactId>spring-ai-common-dao</artifactId>
+            <version>1.0-SNAPSHOT</version>
+            <exclusions>
+                <!--
+                    DAO 当前继承的父模块包含较多实际依赖。
+                    在 MCP 这条依赖路径上排除全部传递依赖，
+                    所需组件由 MCP 显式声明。
+                -->
+                <exclusion>
+                    <groupId>*</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- DAO 的传递依赖被排除，因此这里显式引入订单实体。 -->
+        <dependency>
+            <groupId>org.example</groupId>
+            <artifactId>spring-ai-entity</artifactId>
+            <version>1.0-SNAPSHOT</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>*</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- MyBatis 提供数据库访问框架，MySQL 驱动需要另外引入。 -->
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <scope>runtime</scope>
+        </dependency>
     </dependencies>
 
     <build>

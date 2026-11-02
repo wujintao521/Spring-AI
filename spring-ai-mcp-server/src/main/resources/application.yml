@@ -1,13 +1,18 @@
 server:
   # 与订单助手的8080端口分开。
   port: 8090
-  # 本次练习只供Mac本机访问。
+  # 本机访问。
   address: 127.0.0.1
 
 spring:
   application:
     name: spring-ai-mcp-server
-
+  #数据链接
+  datasource:
+    url: ${SPRING_AI_DB_URL}
+    username: ${SPRING_AI_DB_USERNAME}
+    password: ${SPRING_AI_DB_PASSWORD}
+  #mcp服务端配置
   ai:
     mcp:
       server:
@@ -23,3 +28,10 @@ app:
   mcp:
     # 仅用于当前本机练习，两端必须一致。
     service-token: mcp-service-demo-token-local-only-20261029
+mybatis:
+  # 扫描当前模块及依赖模块中的Mapper XML。
+  mapper-locations: classpath*:mapper/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+    # 单条SQL的超时时间，单位为秒。
+    default-statement-timeout: 5

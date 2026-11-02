@@ -6,10 +6,7 @@ import com.agent.advisor.ModelCallLogAdvisor;
 import com.agent.enums.AgentActionEnum;
 import com.agent.response.AgentChatResponse;
 import com.agent.response.AgentModelResponse;
-import com.agent.tool.DateTimeTool;
-import com.agent.tool.OrderKnowledgeTool;
-import com.agent.tool.TradeOrderCancellationTool;
-import com.agent.tool.TradeOrderTool;
+import com.agent.tool.*;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
@@ -41,7 +38,6 @@ public class AgentService {
                         ModelCallLogAdvisor modelCallLogAdvisor,
                         ModelCallLimitAdvisor modelCallLimitAdvisor,
                         SyncMcpToolCallbackProvider mcpToolCallbackProvider,
-                        TradeOrderTool tradeOrderTool,
                         OrderKnowledgeTool orderKnowledgeTool,
                         AgentPendingActionService agentPendingActionService,
                         CurrentUserService currentUserService) {
@@ -149,10 +145,8 @@ public class AgentService {
                         modelCallLogAdvisor
                 )
                 .defaultTools(
-                        // 远端MCP工具：当前是8090提供的时间工具。
-                        mcpToolCallbackProvider,
-                        // 原有本地业务工具
-                        tradeOrderTool,
+                        // 远端MCP工具：当前是8090提供的时间工具。使用包装后的MCP回调，增加有限重试。
+                        ReadOnlyRetryMcpToolCallback.wrap(mcpToolCallbackProvider),
                         orderKnowledgeTool)
                 .build();
     }

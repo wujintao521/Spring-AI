@@ -4,6 +4,7 @@ import com.agent.response.ApiResponse;
 import com.openai.errors.OpenAIIoException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import org.springframework.ai.tool.execution.ToolExecutionException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,7 +15,11 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.io.InterruptedIOException;
+import java.net.SocketException;
 import java.net.SocketTimeoutException;
+import java.net.UnknownHostException;
+import java.net.http.HttpTimeoutException;
+import java.util.concurrent.TimeoutException;
 
 /**
  * 系统全局异常处理器。
@@ -75,23 +80,6 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 处理Agent工具执行异常。
-     *
-     * 如果工具内部抛出业务异常，则返回具体业务信息；
-     * 其他工具异常统一作为系统异常处理。
-     */
-    @ExceptionHandler(ToolExecutionException.class)
-    public ResponseEntity<ApiResponse<Void>> handleToolExecutionException(ToolExecutionException exception) {
-        Throwable cause = exception.getCause();
-        if (cause instanceof BusinessException businessException) {
-            return handleBusinessException(businessException);
-        }
-        log.error("Agent工具执行失败，toolName={}", exception.getToolDefinition().name(), exception);
-        ApiResponse<Void> response = ApiResponse.failure(50000, "系统内部错误");
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
-    }
-
-    /**
      * 处理模型客户端抛出的网络异常。
      * 网络异常不一定是超时，需要继续检查原因。
      */
@@ -138,6 +126,96 @@ public class GlobalExceptionHandler {
             current = current.getCause();
         }
 
+        return false;
+    }
+
+    /**
+     * 处理 Agent 工具执行异常。
+     *
+     * 本地工具和 MCP 工具都可能进入这里，
+     * 因此提示统一使用“工具”，不写死为某个 MCP 服务。
+     */
+    @ExceptionHandler(ToolExecutionException.class)
+    public ResponseEntity<ApiResponse<Void>> handleToolExecutionException(ToolExecutionException exception) {
+
+        // 保留原有逻辑：本地工具直接包装的业务异常，
+        // 继续按照业务异常中的状态码和提示返回。
+        Throwable cause = exception.getCause();
+        if (cause instanceof BusinessException businessException) {
+            return handleBusinessException(businessException);
+        }
+
+        String toolName = exception.getToolDefinition().name();
+
+        // 必须先判断超时，因为 SocketTimeoutException
+        // 本身也是 SocketException 的子类。
+        if (isToolTimeout(exception)) {
+            log.warn("工具调用超时，toolName={}", toolName, exception);
+
+            ApiResponse<Void> response = ApiResponse.failure(
+                    50402, "工具响应超时，请稍后重试");
+
+            return ResponseEntity
+                    .status(HttpStatus.GATEWAY_TIMEOUT)
+                    .body(response);
+        }
+
+        if (isToolConnectionFailure(exception)) {
+            log.error("工具连接失败，toolName={}", toolName, exception);
+
+            ApiResponse<Void> response = ApiResponse.failure(
+                    50302, "工具服务连接异常，请稍后重试");
+
+            return ResponseEntity
+                    .status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(response);
+        }
+
+        // 包括 MCP 返回 isError=true 后产生的普通工具异常。
+        // 未明确分类的错误继续兜底处理，不直接向前端暴露内部详情。
+        log.error("Agent工具执行失败，toolName={}", toolName, exception);
+
+        ApiResponse<Void> response =
+                ApiResponse.failure(50000, "系统内部错误");
+
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(response);
+    }
+
+    /**
+     * 判断异常链中是否存在明确的超时异常。
+     */
+    private boolean isToolTimeout(Throwable exception) {
+        return hasCause(exception, TimeoutException.class)
+                || hasCause(exception, HttpTimeoutException.class)
+                || hasCause(exception, SocketTimeoutException.class);
+    }
+
+    /**
+     * 判断异常链中是否存在明确的连接故障。
+     */
+    private boolean isToolConnectionFailure(Throwable exception) {
+        // SocketException 包含 ConnectException（例如连接被拒绝），
+        // 也可能表示连接被重置等故障。
+        // UnknownHostException 表示域名解析失败。
+        return hasCause(exception, SocketException.class)
+                || hasCause(exception, UnknownHostException.class);
+    }
+
+    /**
+     * 从当前异常开始，沿 cause 查找指定异常类型。
+     */
+    private boolean hasCause(Throwable exception, Class<? extends Throwable> expectedType) {
+        Throwable current = exception;
+        // 限制遍历层数，避免异常链异常时无限循环。
+        for (int depth = 0; current != null && depth < 20; depth++) {
+            if (expectedType.isInstance(current)) {
+                return true;
+            }
+
+            current = current.getCause();
+        }
         return false;
     }
 }
