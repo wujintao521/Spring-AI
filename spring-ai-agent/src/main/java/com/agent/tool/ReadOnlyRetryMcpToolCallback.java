@@ -33,7 +33,8 @@ public final class ReadOnlyRetryMcpToolCallback implements ToolCallback {
             "getCurrentTime",
             "getTimeByZone",
             "queryTradeOrderByOrderNo",
-            "queryTradeOrdersByCustomerName"
+            "queryTradeOrdersByCustomerName",
+            "queryTradeOrderForWorkflow"
     );
 
     // 原来的MCP工具回调，真正的远程调用仍由它执行。
@@ -67,6 +68,17 @@ public final class ReadOnlyRetryMcpToolCallback implements ToolCallback {
         }
 
         return ToolCallbackProvider.from(callbacks);
+    }
+
+    /**
+     * 工作流根据服务端原始工具名查找工具。
+     */
+    public String getOriginalToolName() {
+        if (delegate instanceof SyncMcpToolCallback mcpCallback) {
+            return mcpCallback.getOriginalToolName();
+        }
+
+        return delegate.getToolDefinition().name();
     }
 
     @Override

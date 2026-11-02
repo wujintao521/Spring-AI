@@ -97,10 +97,9 @@ spring:
         type: SYNC
         request-timeout: 10s
 
-        # 启动时建立客户端并完成协议初始化。
-        initialized: true
-
-        # 将远端工具注册给模型
+        # 启动时不连接MCP
+        initialized: false
+        # 保留官方工具回调提供者，由后台调用它获取工具清单。
         toolcallback:
           enabled: true
 

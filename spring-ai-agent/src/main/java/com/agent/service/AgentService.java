@@ -4,6 +4,7 @@ package com.agent.service;
 import com.agent.advisor.ModelCallLimitAdvisor;
 import com.agent.advisor.ModelCallLogAdvisor;
 import com.agent.enums.AgentActionEnum;
+import com.agent.enums.AgentIntentEnum;
 import com.agent.response.AgentChatResponse;
 import com.agent.response.AgentModelResponse;
 import com.agent.tool.*;
@@ -11,8 +12,10 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.mcp.SyncMcpToolCallbackProvider;
+import org.springframework.ai.tool.ToolCallback;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
@@ -23,9 +26,13 @@ public class AgentService {
      */
     private final ChatClient chatClient;
 
+    private final ChatClient basicChatClient;
+
     private final AgentPendingActionService agentPendingActionService;
 
     private final CurrentUserService currentUserService;
+
+    private final McpToolCatalog mcpToolCatalog;
 
     /**
      * 通过构造方法注入 ChatClient.Builder。
@@ -37,12 +44,38 @@ public class AgentService {
                         ChatMemory chatMemory,
                         ModelCallLogAdvisor modelCallLogAdvisor,
                         ModelCallLimitAdvisor modelCallLimitAdvisor,
-                        SyncMcpToolCallbackProvider mcpToolCallbackProvider,
+                        McpToolCatalog mcpToolCatalog,
                         OrderKnowledgeTool orderKnowledgeTool,
                         AgentPendingActionService agentPendingActionService,
                         CurrentUserService currentUserService) {
         this.agentPendingActionService = agentPendingActionService;
         this.currentUserService = currentUserService;
+        this.mcpToolCatalog = mcpToolCatalog;
+        // 独立构建普通聊天客户端，不注册工具，也不读取订单对话历史。
+        this.basicChatClient = chatClientBuilder.clone()
+                .defaultSystem("""
+                你是一个中文助手，当前远程MCP工具清单尚未准备好。
+
+                可以回答普通问候和不依赖外部工具的一般知识问题。
+
+                用户询问订单、取消资格、退款政策、当前日期时间等
+                需要工具的问题时，明确说明相关工具尚未准备好，请稍后重试。
+
+                不得编造订单信息、当前时间或业务政策，
+                不得声称执行过任何业务动作。
+
+                普通聊天intent为GENERAL_CHAT；
+                订单查询为ORDER_QUERY；
+                取消相关为ORDER_CANCELLATION。
+
+                relatedOrderNos必须为空数组。
+                pendingAction必须为NONE。
+                confirmationRequired必须为false。
+                """)
+                .defaultAdvisors(
+                        modelCallLimitAdvisor,
+                        modelCallLogAdvisor)
+                .build();
         this.chatClient = chatClientBuilder
                 .defaultSystem("""
                         你是一个严谨、友好的中文 AI 助手。
@@ -145,8 +178,6 @@ public class AgentService {
                         modelCallLogAdvisor
                 )
                 .defaultTools(
-                        // 远端MCP工具：当前是8090提供的时间工具。使用包装后的MCP回调，增加有限重试。
-                        ReadOnlyRetryMcpToolCallback.wrap(mcpToolCallbackProvider),
                         orderKnowledgeTool)
                 .build();
     }
@@ -168,12 +199,17 @@ public class AgentService {
         if (message == null || message.isBlank()) {
             throw new IllegalArgumentException("用户问题不能为空");
         }
-
+        List<ToolCallback> remoteTools = mcpToolCatalog.currentTools();
         // 为不同用户建立独立的记忆空间。
         // 即使前端传入相同的conversationId，也不会读取同一组历史。
         String memoryConversationId = userId + ":" + conversationId;
+        // 读取清单
+        if (remoteTools.isEmpty()) {
+            return chatWithoutRemoteTools(message);
+        }
         AgentModelResponse modelResponse = chatClient
                 .prompt()
+                .tools(remoteTools)
                 .user(message)
                 .advisors(advisorSpec ->
                         advisorSpec.param(ChatMemory.CONVERSATION_ID, memoryConversationId)
@@ -181,7 +217,6 @@ public class AgentService {
                                    .param(ModelCallLimitAdvisor.COUNTER_KEY, new AtomicInteger(0)))
                 .call()
                 .entity(AgentModelResponse.class);
-
         String actionId = null;
         if (modelResponse.pendingAction() != AgentActionEnum.NONE) {
             String orderNo = modelResponse.relatedOrderNos().get(0);
@@ -195,4 +230,34 @@ public class AgentService {
         return AgentChatResponse.from(modelResponse, actionId);
     }
 
+    /**
+     * 尚未取得远程工具清单时，提供受限的普通聊天。
+     * 此路径不创建待确认动作。
+     */
+    private AgentChatResponse chatWithoutRemoteTools(String message) {
+        AgentModelResponse response = basicChatClient
+                .prompt()
+                .user(message)
+                .advisors(advisorSpec -> advisorSpec.param(
+                        ModelCallLimitAdvisor.COUNTER_KEY,
+                        new AtomicInteger(0)))
+                .call()
+                .entity(AgentModelResponse.class);
+
+        String answer = response.answer();
+        if (response.intent() != AgentIntentEnum.GENERAL_CHAT
+                || response.pendingAction() != AgentActionEnum.NONE) {
+
+            // 识别为订单业务请求时，由后端统一提供不可用说明。
+            answer = "远程工具尚未准备好，暂时无法处理订单查询和取消相关请求，请稍后重试。";
+        }
+        // 返回明确的无动作结果，不进入创建待确认动作的流程。
+        return new AgentChatResponse(
+                answer,
+                response.intent(),
+                List.of(),
+                AgentActionEnum.NONE,
+                false,
+                null);
+    }
 }
